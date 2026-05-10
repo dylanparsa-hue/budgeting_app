@@ -1,0 +1,222 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { useAuthStore } from '../../src/stores/authStore';
+import { Button } from '../../src/components/ui/Button';
+import { Input } from '../../src/components/ui/Input';
+import { Colors } from '../../src/theme/colors';
+import { Typography } from '../../src/theme/typography';
+import { BorderRadius, Spacing } from '../../src/theme/spacing';
+
+export default function LoginScreen() {
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw,   setShowPw]   = useState(false);
+
+  const { login, isLoading } = useAuthStore();
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing fields', 'Please enter your email and password.');
+      return;
+    }
+    try {
+      await login(email.trim().toLowerCase(), password);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      Alert.alert('Login failed', err.message ?? 'Invalid credentials. Please try again.');
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero */}
+        <LinearGradient
+          colors={Colors.gradients.primary as [string, string]}
+          style={styles.hero}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+        >
+          <View style={styles.heroCircle1} />
+          <View style={styles.heroCircle2} />
+          <Text style={styles.heroEmoji}>💰</Text>
+          <Text style={styles.heroTitle}>Budget</Text>
+          <Text style={styles.heroSub}>Your money, simplified</Text>
+        </LinearGradient>
+
+        {/* Form card */}
+        <View style={styles.formCard}>
+          <Text style={styles.formTitle}>Welcome back</Text>
+          <Text style={styles.formSub}>Sign in to continue tracking your money</Text>
+
+          <View style={styles.fields}>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPw}
+              autoComplete="password"
+              placeholder="••••••••"
+              rightIcon={
+                <Text style={styles.togglePw}>{showPw ? '🙈' : '👁️'}</Text>
+              }
+              onRightPress={() => setShowPw(v => !v)}
+            />
+          </View>
+
+          <Button
+            label={isLoading ? 'Signing in…' : 'Sign In'}
+            onPress={handleLogin}
+            loading={isLoading}
+            fullWidth
+            size="lg"
+          />
+
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.line} />
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/register')}
+            style={styles.registerBtn}
+          >
+            <Text style={styles.registerText}>
+              Don't have an account?{' '}
+              <Text style={styles.registerLink}>Create one</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: Colors.white,
+  },
+  content: {
+    flexGrow: 1,
+  },
+  hero: {
+    minHeight:      280,
+    alignItems:     'center',
+    justifyContent: 'center',
+    overflow:       'hidden',
+    position:       'relative',
+    gap:            Spacing[1],
+    paddingBottom:  Spacing[10],
+  },
+  heroCircle1: {
+    position:        'absolute',
+    top:             -50,
+    right:           -50,
+    width:           200,
+    height:          200,
+    borderRadius:    100,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  heroCircle2: {
+    position:        'absolute',
+    bottom:          -30,
+    left:            -40,
+    width:           150,
+    height:          150,
+    borderRadius:    75,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  heroEmoji: {
+    fontSize:  52,
+    marginBottom: Spacing[1],
+  },
+  heroTitle: {
+    ...Typography.displayMedium,
+    color: Colors.white,
+  },
+  heroSub: {
+    ...Typography.bodyMedium,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  formCard: {
+    flex:              1,
+    backgroundColor:   Colors.white,
+    borderTopLeftRadius:  BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    marginTop:         -Spacing[7],
+    paddingHorizontal: Spacing[6],
+    paddingTop:        Spacing[8],
+    paddingBottom:     Spacing[10],
+    gap:               Spacing[5],
+  },
+  formTitle: {
+    ...Typography.headingLarge,
+    color: Colors.textPrimary,
+  },
+  formSub: {
+    ...Typography.bodyMedium,
+    color:     Colors.textSecondary,
+    marginTop: -Spacing[3],
+  },
+  fields: {
+    gap: Spacing[4],
+  },
+  togglePw: {
+    fontSize: 18,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing[3],
+  },
+  line: {
+    flex:            1,
+    height:          1,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    ...Typography.caption,
+    color: Colors.textTertiary,
+  },
+  registerBtn: {
+    alignItems: 'center',
+  },
+  registerText: {
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
+  },
+  registerLink: {
+    color:      Colors.primary,
+    fontWeight: '600',
+  },
+});

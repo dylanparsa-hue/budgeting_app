@@ -1,0 +1,42 @@
+{
+  "name": "budget-app",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint . --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "@react-native-async-storage/async-storage": "2.1.0",
+    "@react-navigation/native": "^6.1.18",
+    "@supabase/supabase-js": "^2.47.0",
+    "date-fns": "^4.1.0",
+    "expo": "^49.0.23",
+    "expo-font": "~13.0.0",
+    "expo-haptics": "~14.0.0",
+    "expo-linear-gradient": "~14.0.0",
+    "expo-router": "~4.0.0",
+    "expo-splash-screen": "~0.29.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-system-ui": "~4.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "react-native-gesture-handler": "~2.21.0",
+    "react-native-reanimated": "~3.16.0",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.3.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "zustand": "^5.0.2",
+    "react-native-web": "~0.19.6",
+    "undefined": "react-native-community/cli-server-api"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@types/react": "~18.3.12",
+    "typescript": "^5.3.3"
+  }
+}
