@@ -1,112 +1,204 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Platform } from 'react-native';
-import { Colors } from '../../src/theme/colors';
-import { Typography } from '../../src/theme/typography';
-import { Spacing } from '../../src/theme/spacing';
+import { useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, Platform,
+  TouchableOpacity, Dimensions, Animated,
+} from 'react-native';
+import { useTheme } from '../../src/theme/ThemeContext';
 
-interface TabIconProps {
-  icon:     string;
-  label:    string;
-  focused:  boolean;
+const TABS = [
+  { name: 'index',        label: 'Dashboard'    },
+  { name: 'budgets',      label: 'Categories'   },
+  { name: 'transactions', label: 'Transactions' },
+  { name: 'goals',        label: 'Savings'      },
+];
+
+function TabButton({
+  label, focused, tabWidth, onPress,
+}: {
+  label: string; focused: boolean; tabWidth: number; onPress: () => void;
+}) {
+  const C     = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const press = () => {
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 0 }),
+      Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 30, bounciness: 8 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.tab, { width: tabWidth }]}
+      activeOpacity={1}
+      onPress={press}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Text
+          style={[
+            styles.label,
+            { color: focused ? C.primary : C.textTertiary },
+            focused && styles.labelFocused,
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
 }
 
-function TabIcon({ icon, label, focused }: TabIconProps) {
+function CustomTabBar({ state, navigation }: any) {
+  const C   = useTheme();
+  const sw  = Dimensions.get('window').width;
+  const BAR = sw - 32;
+  const TW  = BAR / TABS.length;
+
+  const pillX    = useRef(new Animated.Value(state.index * TW)).current;
+  const barScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Slide the active pill
+    Animated.spring(pillX, {
+      toValue:         state.index * TW,
+      useNativeDriver: true,
+      speed:           22,
+      bounciness:      7,
+    }).start();
+    // Tiny squeeze-and-release on the whole bar so it feels alive
+    Animated.sequence([
+      Animated.spring(barScale, { toValue: 0.97, useNativeDriver: true, speed: 60, bounciness: 0 }),
+      Animated.spring(barScale, { toValue: 1,    useNativeDriver: true, speed: 18, bounciness: 10 }),
+    ]).start();
+  }, [state.index, TW]);
+
+  const bottom = Platform.OS === 'ios' ? 28 : 16;
+  const barBg  = C.isDark ? '#1E2D3D' : '#FFFFFF';
+
   return (
-    <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Text style={styles.tabEmoji}>{icon}</Text>
-      {focused && <Text style={styles.tabLabel}>{label}</Text>}
-    </View>
+    // Outer shell: carries the glow + drop shadow (no overflow:hidden so shadows render)
+    <Animated.View
+      style={[
+        styles.barShell,
+        {
+          width:           BAR,
+          bottom,
+          left:            16,
+          transform:       [{ scale: barScale }],
+          backgroundColor: barBg,
+          // Primary-coloured glow (iOS renders coloured shadows)
+          shadowColor:     C.primary,
+          shadowOpacity:   C.isDark ? 0.45 : 0.28,
+          shadowRadius:    18,
+          shadowOffset:    { width: 0, height: 4 },
+          // Crisp border for frosted separation
+          borderColor:     C.isDark
+            ? 'rgba(255,255,255,0.08)'
+            : 'rgba(255,255,255,0.95)',
+        },
+      ]}
+    >
+      {/* Android glow layer (elevation only does black; fake green glow with a tinted halo) */}
+      {Platform.OS === 'android' && (
+        <View style={[styles.androidGlow, { backgroundColor: C.primary, opacity: C.isDark ? 0.18 : 0.12 }]} />
+      )}
+
+      {/* Inner clipping view — overflow:hidden clips the sliding pill without killing the outer glow */}
+      <View style={[styles.barInner, { backgroundColor: barBg }]}>
+        {/* Sliding active pill */}
+        <Animated.View
+          style={[
+            styles.activePill,
+            {
+              width:           TW - 8,
+              backgroundColor: C.primary + '28',
+              transform:       [{ translateX: Animated.add(pillX, new Animated.Value(4)) }],
+            },
+          ]}
+        />
+
+        {TABS.map((tab, i) => (
+          <TabButton
+            key={tab.name}
+            label={tab.label}
+            focused={state.index === i}
+            tabWidth={TW}
+            onPress={() => {
+              const ev = navigation.emit({
+                type:              'tabPress',
+                target:            state.routes[i].key,
+                canPreventDefault: true,
+              });
+              if (state.index !== i && !ev.defaultPrevented) {
+                navigation.navigate(tab.name);
+              }
+            }}
+          />
+        ))}
+      </View>
+    </Animated.View>
   );
 }
 
 export default function TabLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown:    false,
-        tabBarShowLabel: false,
-        tabBarStyle:    styles.tabBar,
-        tabBarActiveTintColor:   Colors.primary,
-        tabBarInactiveTintColor: Colors.textTertiary,
-      }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="🏠" label="Home" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="transactions"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="📋" label="Transactions" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="budgets"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="🎯" label="Budgets" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="goals"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="⭐" label="Goals" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="👤" label="Profile" focused={focused} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index"        />
+      <Tabs.Screen name="budgets"      />
+      <Tabs.Screen name="transactions" />
+      <Tabs.Screen name="goals"        />
+      <Tabs.Screen name="plan"         options={{ href: null }} />
+      <Tabs.Screen name="profile"      options={{ href: null }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    height:          Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
-    paddingTop:      Spacing[2],
-    backgroundColor: Colors.white,
-    borderTopWidth:  1,
-    borderTopColor:  Colors.border,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: -2 },
-    shadowOpacity:   0.05,
-    shadowRadius:    8,
-    elevation:       8,
+  // Outer shell — NO overflow:hidden so the coloured glow shadow is visible
+  barShell: {
+    position:      'absolute',
+    height:        56,
+    borderRadius:  28,
+    borderWidth:   1,
+    // Android drop shadow (black only, handled via elevation)
+    elevation:     18,
   },
-  tabItem: {
+  // Android tinted halo sits behind the inner bar
+  androidGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 28,
+  },
+  // Inner view — clips the sliding pill, matches shell exactly
+  barInner: {
+    flex:          1,
+    flexDirection: 'row',
+    alignItems:    'center',
+    borderRadius:  28,
+    overflow:      'hidden',
+  },
+  activePill: {
+    position:     'absolute',
+    top:          6,
+    bottom:       6,
+    borderRadius: 20,
+  },
+  tab: {
+    height:         '100%',
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            Spacing[0.5],
-    paddingHorizontal: Spacing[3],
-    paddingVertical:   Spacing[1.5],
-    borderRadius:   20,
-    minWidth:       56,
   },
-  tabItemActive: {
-    backgroundColor: Colors.primaryLight,
-    flexDirection:   'row',
-    gap:             Spacing[1.5],
+  label: {
+    fontSize:      12,
+    fontWeight:    '600',
+    letterSpacing: 0.1,
   },
-  tabEmoji: {
-    fontSize: 22,
-  },
-  tabLabel: {
-    ...Typography.labelSmall,
-    color: Colors.primary,
+  labelFocused: {
+    fontWeight: '800',
   },
 });

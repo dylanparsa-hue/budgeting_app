@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { Typography } from '../../theme/typography';
 import { BorderRadius, Spacing } from '../../theme/spacing';
 
@@ -12,16 +12,18 @@ interface BadgeProps {
   style?:   ViewStyle;
 }
 
-const variantMap: Record<BadgeVariant, { bg: string; text: string }> = {
-  default:  { bg: Colors.surfaceRaised, text: Colors.textSecondary },
-  primary:  { bg: Colors.primaryLight,  text: Colors.primary },
-  success:  { bg: Colors.successLight,  text: Colors.success },
-  warning:  { bg: Colors.warningLight,  text: Colors.warning },
-  danger:   { bg: Colors.dangerLight,   text: Colors.danger },
-  info:     { bg: Colors.infoLight,     text: Colors.info },
-};
-
 export function Badge({ label, variant = 'default', style }: BadgeProps) {
+  const C = useTheme();
+
+  const variantMap: Record<BadgeVariant, { bg: string; text: string }> = {
+    default: { bg: C.surfaceRaised, text: C.textSecondary },
+    primary: { bg: C.primaryLight,  text: C.primary },
+    success: { bg: C.successLight,  text: C.success },
+    warning: { bg: C.warningLight,  text: C.warning },
+    danger:  { bg: C.dangerLight,   text: C.danger },
+    info:    { bg: C.infoLight,     text: C.info },
+  };
+
   const { bg, text } = variantMap[variant];
   return (
     <View style={[styles.badge, { backgroundColor: bg }, style]}>
@@ -37,7 +39,5 @@ const styles = StyleSheet.create({
     borderRadius:      BorderRadius.full,
     alignSelf:         'flex-start',
   },
-  text: {
-    ...Typography.labelSmall,
-  },
+  text: { ...Typography.labelSmall },
 });

@@ -22,6 +22,7 @@ interface TransactionState {
   loadFromCache:    (userId: string) => Promise<void>;
   syncFromServer:   (userId: string) => Promise<void>;
   addTransaction:   (userId: string, data: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  editTransaction:  (id: string, data: Partial<Omit<Transaction, 'id' | 'created_at' | 'updated_at'>>) => Promise<void>;
   removeTransaction:(id: string) => Promise<void>;
   loadCategories:   (userId: string) => Promise<void>;
   addCategory:      (data: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
@@ -91,12 +92,28 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       // Update cache
       const { transactions } = get();
       await Storage.set(StorageKeys.TRANSACTIONS, transactions);
-    } catch {
+    } catch (err: any) {
       // Rollback optimistic on failure
       set(state => ({
         transactions: state.transactions.filter(t => t.id !== optimistic.id),
       }));
-      throw new Error('Failed to save transaction. Will retry when online.');
+      throw new Error(err?.message ?? 'Failed to save transaction.');
+    }
+  },
+
+  editTransaction: async (id, data) => {
+    const previous = get().transactions;
+    set(state => ({
+      transactions: state.transactions.map(t =>
+        t.id === id ? { ...t, ...data, updated_at: new Date().toISOString() } : t
+      ),
+    }));
+    try {
+      await updateTransaction(id, data);
+      await Storage.set(StorageKeys.TRANSACTIONS, get().transactions);
+    } catch (err: any) {
+      set({ transactions: previous });
+      throw new Error(err?.message ?? 'Failed to update transaction.');
     }
   },
 

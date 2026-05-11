@@ -1,16 +1,11 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-  View,
+  TouchableOpacity, Text, ActivityIndicator,
+  StyleSheet, ViewStyle, TextStyle, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import { Colors } from '../../theme/colors';
+import { hapticLight } from '../../utils/haptics';
+import { useTheme } from '../../theme/ThemeContext';
 import { Typography } from '../../theme/typography';
 import { BorderRadius, Spacing } from '../../theme/spacing';
 
@@ -18,16 +13,16 @@ type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size    = 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
-  label:       string;
-  onPress:     () => void;
-  variant?:    Variant;
-  size?:       Size;
-  loading?:    boolean;
-  disabled?:   boolean;
-  icon?:       React.ReactNode;
-  iconRight?:  React.ReactNode;
-  fullWidth?:  boolean;
-  style?:      ViewStyle;
+  label:      string;
+  onPress:    () => void;
+  variant?:   Variant;
+  size?:      Size;
+  loading?:   boolean;
+  disabled?:  boolean;
+  icon?:      React.ReactNode;
+  iconRight?: React.ReactNode;
+  fullWidth?: boolean;
+  style?:     ViewStyle;
 }
 
 const sizeMap: Record<Size, { height: number; px: number; text: TextStyle }> = {
@@ -48,27 +43,41 @@ export function Button({
   fullWidth = false,
   style,
 }: ButtonProps) {
+  const C = useTheme();
   const { height, px, text } = sizeMap[size];
-  const isDisabled           = disabled || loading;
+  const isDisabled = disabled || loading;
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticLight();
     onPress();
+  };
+
+  const variantStyleMap: Record<Exclude<Variant, 'primary'>, ViewStyle> = {
+    secondary: { backgroundColor: C.secondaryLight },
+    outline:   { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: C.primary },
+    ghost:     { backgroundColor: 'transparent' },
+    danger:    { backgroundColor: C.dangerLight },
+  };
+
+  const textColorMap: Record<Variant, TextStyle> = {
+    primary:   { color: '#fff' },
+    secondary: { color: C.secondary },
+    outline:   { color: C.primary },
+    ghost:     { color: C.primary },
+    danger:    { color: C.danger },
   };
 
   const content = (
     <>
       {loading ? (
         <ActivityIndicator
-          color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.white}
+          color={variant === 'outline' || variant === 'ghost' ? C.primary : '#fff'}
           size="small"
         />
       ) : (
         <>
-          {icon && <View style={styles.iconLeft}>{icon}</View>}
-          <Text style={[text, textColorMap[variant], isDisabled && styles.disabledText]}>
-            {label}
-          </Text>
+          {icon     && <View style={styles.iconLeft}>{icon}</View>}
+          <Text style={[text, textColorMap[variant], isDisabled && styles.disabledText]}>{label}</Text>
           {iconRight && <View style={styles.iconRight}>{iconRight}</View>}
         </>
       )}
@@ -84,7 +93,7 @@ export function Button({
         style={[fullWidth && styles.fullWidth, style]}
       >
         <LinearGradient
-          colors={isDisabled ? [Colors.textTertiary, Colors.textTertiary] : Colors.gradients.primary}
+          colors={isDisabled ? [C.textTertiary, C.textTertiary] : C.gradients.primary as [string, string]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[styles.base, { height, paddingHorizontal: px }]}
@@ -114,27 +123,10 @@ export function Button({
   );
 }
 
-const variantStyleMap: Record<Exclude<Variant, 'primary'>, ViewStyle> = {
-  secondary: { backgroundColor: Colors.secondaryLight },
-  outline:   { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.primary },
-  ghost:     { backgroundColor: 'transparent' },
-  danger:    { backgroundColor: Colors.dangerLight },
-};
-
-const textColorMap: Record<Variant, TextStyle> = {
-  primary:   { color: Colors.white },
-  secondary: { color: Colors.secondary },
-  outline:   { color: Colors.primary },
-  ghost:     { color: Colors.primary },
-  danger:    { color: Colors.danger },
-};
-
 const styles = StyleSheet.create({
   base: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    borderRadius:   BorderRadius.xl,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: BorderRadius.xl,
   },
   fullWidth:    { width: '100%' },
   disabledBase: { opacity: 0.5 },

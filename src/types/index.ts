@@ -3,6 +3,17 @@
 // ─────────────────────────────────────────
 
 export type TransactionType = 'income' | 'expense';
+export type RecurringCategory = 'rent' | 'utilities' | 'subscription' | 'debt' | 'insurance' | 'transport' | 'other';
+export type RecurringFrequency = 'monthly' | 'weekly' | 'yearly';
+
+export interface RecurringExpense {
+  id:               string;
+  name:             string;
+  amount:           number;
+  category:         RecurringCategory;
+  frequency:        RecurringFrequency;
+  deductFromIncome: boolean;
+}
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'ewallet' | 'other';
 export type BudgetPeriod = 'monthly' | 'weekly' | 'yearly';
 export type GroupRole = 'admin' | 'member';
@@ -113,6 +124,53 @@ export interface Insight {
   title:   string;
   message: string;
   icon:    string;
+}
+
+// ── Smart Notification System ─────────────────────────────────────────────────
+
+export type InsightCategory = 'awareness' | 'budget' | 'protection' | 'motivation' | 'neutral';
+export type InsightSeverity = 'info' | 'warning' | 'success' | 'alert';
+
+export interface SmartInsight {
+  id:           string;
+  category:     InsightCategory;
+  severity:     InsightSeverity;
+  icon:         string;
+  title:        string;
+  message:      string;
+  actionLabel?: string;
+  actionRoute?: string;
+  createdAt:    number;
+  dismissed:    boolean;
+}
+
+export interface NotificationPrefs {
+  financialAwareness: {
+    enabled:                boolean;
+    spendingHabits:         boolean;
+    unusualSpending:        boolean;
+    largePurchase:          boolean;
+    largePurchaseThreshold: number;   // default 200
+  };
+  budgetControl: {
+    enabled:        boolean;
+    warningAt:      number;           // % threshold, default 80
+    categoryAlerts: boolean;
+  };
+  accountProtection: {
+    enabled:              boolean;
+    lowBalance:           boolean;
+    lowBalanceThreshold:  number;     // default 100
+    overdraftRisk:        boolean;
+    billReminders:        boolean;
+  };
+  motivation: {
+    enabled:            boolean;
+    goalProgress:       boolean;
+    monthlyComparison:  boolean;
+    positiveReinforcement: boolean;
+  };
+  pushEnabled: boolean;
 }
 
 export interface WalletContext {

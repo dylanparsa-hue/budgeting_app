@@ -45,4 +45,8 @@ export const StorageKeys = {
   WALLET:        'active_wallet',
   ONBOARDED:     'onboarded',
   LAST_SYNC:     'last_sync',
+  RECURRING:     'recurring_expenses',
+  NOTIF_PREFS:   'notification_prefs',
+  DISMISSED_IDS: 'dismissed_insight_ids',
+  APP_START_DATE: 'app_start_date',
 } as const;

@@ -1,47 +1,37 @@
 import React, { useState } from 'react';
 import {
-  View,
-  TextInput,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  TextInputProps,
-  ViewStyle,
+  View, TextInput, Text, TouchableOpacity,
+  StyleSheet, TextInputProps, ViewStyle,
 } from 'react-native';
-import { Colors } from '../../theme/colors';
+import { useTheme } from '../../theme/ThemeContext';
 import { Typography, FontSize } from '../../theme/typography';
 import { BorderRadius, Spacing } from '../../theme/spacing';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
-  label?:       string;
-  error?:       string;
-  hint?:        string;
-  leftIcon?:    React.ReactNode;
-  rightIcon?:   React.ReactNode;
-  onRightPress?: () => void;
+  label?:          string;
+  error?:          string;
+  hint?:           string;
+  leftIcon?:       React.ReactNode;
+  rightIcon?:      React.ReactNode;
+  onRightPress?:   () => void;
   containerStyle?: ViewStyle;
 }
 
 export function Input({
-  label,
-  error,
-  hint,
-  leftIcon,
-  rightIcon,
-  onRightPress,
-  containerStyle,
-  ...props
+  label, error, hint, leftIcon, rightIcon, onRightPress, containerStyle, ...props
 }: InputProps) {
+  const C = useTheme();
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: C.textPrimary }]}>{label}</Text>}
       <View
         style={[
           styles.inputRow,
-          focused && styles.inputFocused,
-          !!error && styles.inputError,
+          { backgroundColor: C.surfaceRaised, borderColor: C.border },
+          focused && { borderColor: C.primary, backgroundColor: C.primaryLight },
+          !!error && { borderColor: C.danger },
         ]}
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
@@ -49,47 +39,48 @@ export function Input({
           {...props}
           onFocus={e => { setFocused(true); props.onFocus?.(e); }}
           onBlur={e  => { setFocused(false); props.onBlur?.(e); }}
-          style={[styles.input, leftIcon && styles.inputWithLeft, rightIcon && styles.inputWithRight]}
-          placeholderTextColor={Colors.textTertiary}
+          style={[
+            styles.input,
+            { color: C.textPrimary },
+            leftIcon  ? styles.inputWithLeft  : null,
+            rightIcon ? styles.inputWithRight : null,
+          ]}
+          placeholderTextColor={C.textTertiary}
         />
         {rightIcon && (
-          <TouchableOpacity
-            onPress={onRightPress}
-            disabled={!onRightPress}
-            style={styles.rightIcon}
-          >
+          <TouchableOpacity onPress={onRightPress} disabled={!onRightPress} style={styles.rightIcon}>
             {rightIcon}
           </TouchableOpacity>
         )}
       </View>
       {error ? (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
       ) : hint ? (
-        <Text style={styles.hintText}>{hint}</Text>
+        <Text style={[styles.hintText, { color: C.textTertiary }]}>{hint}</Text>
       ) : null}
     </View>
   );
 }
 
-// ── Large amount input (used in Add Transaction) ───────────────────────────────
 interface AmountInputProps {
-  value:       string;
+  value:        string;
   onChangeText: (v: string) => void;
-  currency?:   string;
-  style?:      ViewStyle;
+  currency?:    string;
+  style?:       ViewStyle;
 }
 
 export function AmountInput({ value, onChangeText, currency = 'RM', style }: AmountInputProps) {
+  const C = useTheme();
   return (
     <View style={[styles.amountContainer, style]}>
-      <Text style={styles.currencySymbol}>{currency}</Text>
+      <Text style={[styles.currencySymbol, { color: C.textSecondary }]}>{currency}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         keyboardType="decimal-pad"
         placeholder="0.00"
-        placeholderTextColor={Colors.textTertiary}
-        style={styles.amountInput}
+        placeholderTextColor={C.textTertiary}
+        style={[styles.amountInput, { color: C.textPrimary }]}
         maxLength={12}
       />
     </View>
@@ -97,68 +88,32 @@ export function AmountInput({ value, onChangeText, currency = 'RM', style }: Amo
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: Spacing[1.5],
-  },
-  label: {
-    ...Typography.labelLarge,
-    color: Colors.textPrimary,
-  },
+  container:  { gap: Spacing[1.5] },
+  label:      { ...Typography.labelLarge },
   inputRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: Colors.surfaceRaised,
-    borderRadius:    BorderRadius.lg,
-    borderWidth:     1.5,
-    borderColor:     Colors.border,
-    height:          52,
-  },
-  inputFocused: {
-    borderColor:     Colors.primary,
-    backgroundColor: Colors.primaryLight,
-  },
-  inputError: {
-    borderColor: Colors.danger,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: BorderRadius.lg, borderWidth: 1.5, height: 52,
   },
   input: {
-    flex:        1,
-    paddingHorizontal: Spacing[4],
-    ...Typography.bodyMedium,
-    color:       Colors.textPrimary,
+    flex: 1, paddingHorizontal: Spacing[4], ...Typography.bodyMedium,
   },
   inputWithLeft:  { paddingLeft:  Spacing[1] },
   inputWithRight: { paddingRight: Spacing[1] },
   leftIcon:  { paddingLeft:  Spacing[4] },
   rightIcon: { paddingRight: Spacing[4] },
-  errorText: {
-    ...Typography.caption,
-    color: Colors.danger,
-  },
-  hintText: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
-  },
+  errorText: { ...Typography.caption },
+  hintText:  { ...Typography.caption },
 
-  // Amount input
   amountContainer: {
-    flexDirection:   'row',
-    alignItems:      'flex-end',
-    justifyContent:  'center',
-    paddingVertical: Spacing[4],
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'center', paddingVertical: Spacing[4],
   },
   currencySymbol: {
-    fontSize:    FontSize.xl,
-    fontWeight:  '600',
-    color:       Colors.textSecondary,
-    marginBottom: 4,
-    marginRight:  Spacing[1],
+    fontSize: FontSize.xl, fontWeight: '600',
+    marginBottom: 4, marginRight: Spacing[1],
   },
   amountInput: {
-    fontSize:    FontSize['4xl'],
-    fontWeight:  '700',
-    color:       Colors.textPrimary,
-    letterSpacing: -1,
-    minWidth:    80,
-    textAlign:   'center',
+    fontSize: FontSize['4xl'], fontWeight: '700',
+    letterSpacing: -1, minWidth: 80, textAlign: 'center',
   },
 });

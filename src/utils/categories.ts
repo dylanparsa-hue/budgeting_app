@@ -2,9 +2,16 @@ import { Category } from '../types';
 import { Colors } from '../theme/colors';
 
 export const DEFAULT_GOAL_ICONS = ['🎯', '🚗', '✈️', '🏠', '💍', '📱', '🎓', '🏥', '💰', '🌴', '🎸', '🐶'];
+// All values must be unique — no duplicates or React will warn about duplicate keys
 export const DEFAULT_GOAL_COLORS = [
-  Colors.primary, Colors.secondary, Colors.accent,
-  Colors.info, '#EC4899', '#8B5CF6', '#F59E0B', '#EF4444',
+  '#10B981', // emerald (primary)
+  '#3B82F6', // blue
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#06B6D4', // cyan
+  '#F97316', // orange
 ];
 
 export const PAYMENT_METHODS = [
