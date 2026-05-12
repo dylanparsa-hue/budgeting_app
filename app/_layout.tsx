@@ -4,24 +4,48 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from 'react-native';
+import { useFonts } from 'expo-font';
+import {
+  Sora_600SemiBold,
+  Sora_700Bold,
+  Sora_800ExtraBold,
+} from '@expo-google-fonts/sora';
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+} from '@expo-google-fonts/manrope';
 import { useAuthStore } from '../src/stores/authStore';
 import { ThemeProvider } from '../src/theme/ThemeContext';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const { initialize, isHydrated } = useAuthStore();
   const scheme = useColorScheme();
 
+  const [fontsLoaded] = useFonts({
+    Sora_600SemiBold,
+    Sora_700Bold,
+    Sora_800ExtraBold,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+  });
+
   useEffect(() => {
-    initialize().finally(() => {
-      if (isHydrated) SplashScreen.hideAsync();
-    });
+    initialize();
   }, []);
 
   useEffect(() => {
-    if (isHydrated) SplashScreen.hideAsync();
-  }, [isHydrated]);
+    if (isHydrated && fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isHydrated, fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

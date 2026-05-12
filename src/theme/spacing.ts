@@ -1,3 +1,7 @@
+/**
+ * Waddl spacing + radius + shadow tokens (4px base grid).
+ */
+
 export const Spacing = {
   0:    0,
   0.5:  2,
@@ -21,45 +25,53 @@ export const Spacing = {
   24:   96,
 } as const;
 
+/**
+ * cards: 2xl (20), hero: 3xl (28), buttons/chips: xl (16), inputs: lg (14).
+ */
 export const BorderRadius = {
   none:  0,
-  sm:    6,
-  md:    10,
+  sm:    8,
+  md:    12,
   lg:    14,
-  xl:    18,
-  '2xl': 24,
-  '3xl': 32,
+  xl:    16,
+  '2xl': 20,
+  '3xl': 28,
   full:  9999,
 } as const;
 
+/**
+ * Soft green-ink shadows — never harsh black.
+ * shadowColor uses ink (#0E2417) which iOS renders tinted.
+ */
 export const Shadow = {
   none: {},
   sm: {
-    shadowColor:   '#000',
+    shadowColor:   '#0E2417',
     shadowOffset:  { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius:  2,
+    shadowOpacity: 0.04,
+    shadowRadius:  4,
     elevation:     1,
   },
   md: {
-    shadowColor:   '#000',
+    shadowColor:   '#0E2417',
     shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius:  8,
+    shadowOpacity: 0.06,
+    shadowRadius:  12,
     elevation:     3,
   },
   lg: {
-    shadowColor:   '#000',
-    shadowOffset:  { width: 0, height: 4 },
+    shadowColor:   '#0E2417',
+    shadowOffset:  { width: 0, height: 8 },
     shadowOpacity: 0.10,
-    shadowRadius:  16,
+    shadowRadius:  24,
     elevation:     6,
   },
   xl: {
-    shadowColor:   '#6366F1',
+    // Lime glow — FAB / primary CTA only
+    shadowColor:   '#9FE870',
     shadowOffset:  { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius:  24,
+    shadowOpacity: 0.40,
+    shadowRadius:  20,
     elevation:     10,
   },
 } as const;

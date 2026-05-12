@@ -4,6 +4,19 @@
 
 export type TransactionType = 'income' | 'expense';
 export type RecurringCategory = 'rent' | 'utilities' | 'subscription' | 'debt' | 'insurance' | 'transport' | 'other';
+export type DebtPriority = 'overdue' | 'critical' | 'urgent' | 'on_track' | 'no_date';
+
+export interface Debt {
+  id:           string;
+  name:         string;        // what the debt is for
+  lender:       string;        // who you owe it to
+  totalAmount:  number;        // original/total amount owed
+  amountPaid:   number;        // how much has been paid so far
+  dueDate:      string | null; // ISO date string (YYYY-MM-DD)
+  interestRate: number | null; // optional annual % rate
+  notes:        string | null;
+  createdAt:    string;        // ISO date string
+}
 export type RecurringFrequency = 'monthly' | 'weekly' | 'yearly';
 
 export interface RecurringExpense {

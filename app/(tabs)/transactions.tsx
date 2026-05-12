@@ -13,6 +13,7 @@ import {
 import { useAuthStore }        from '../../src/stores/authStore';
 import { useTransactionStore } from '../../src/stores/transactionStore';
 import { useRecurringStore }   from '../../src/stores/recurringStore';
+import { Search, X } from 'lucide-react-native';
 import { Transaction }         from '../../src/types';
 import { TransactionItem }     from '../../src/components/transactions/TransactionItem';
 import { useTheme }            from '../../src/theme/ThemeContext';
@@ -137,7 +138,7 @@ export default function TransactionsScreen() {
 
       {/* Search */}
       <View style={[styles.searchRow, { backgroundColor: C.surfaceRaised }]}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <View style={{ paddingLeft: 14 }}><Search size={16} color={C.textTertiary} strokeWidth={2.25} /></View>
         <TextInput
           value={search}
           onChangeText={setSearch}
@@ -146,8 +147,8 @@ export default function TransactionsScreen() {
           style={[styles.searchInput, { color: C.textPrimary }]}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={[styles.clearSearch, { color: C.textTertiary }]}>✕</Text>
+          <TouchableOpacity onPress={() => setSearch('')} style={{ paddingRight: 14 }}>
+            <X size={16} color={C.textTertiary} strokeWidth={2} />
           </TouchableOpacity>
         )}
       </View>

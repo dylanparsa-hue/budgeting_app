@@ -58,7 +58,7 @@ export function ProgressBar({
         />
       </View>
       {showLabel && (
-        <Text style={[styles.label, { color: resolvedColor }]}>
+        <Text style={[styles.label, { color: C.textSecondary }]}>
           {clamped.toFixed(0)}%
         </Text>
       )}

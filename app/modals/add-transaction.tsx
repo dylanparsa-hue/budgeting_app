@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Animated, KeyboardAvoidingView, Platform, TextInput, ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { format, subDays, addDays, isAfter, startOfDay } from 'date-fns';
+import { format, subDays, addDays, isAfter, startOfDay, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 
 import { useAuthStore }        from '../../src/stores/authStore';
 import { useTransactionStore } from '../../src/stores/transactionStore';
@@ -39,7 +40,7 @@ export default function AddTransactionModal() {
   const C = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user, profile }                                                           = useAuthStore();
-  const { categories, transactions, addTransaction, editTransaction, syncFromServer, isSyncing } = useTransactionStore();
+  const { categories, transactions, addTransaction, editTransaction, removeTransaction, syncFromServer, isSyncing } = useTransactionStore();
 
   const existing  = id ? transactions.find(t => t.id === id) : null;
   const isEditing = !!existing;
@@ -51,10 +52,13 @@ export default function AddTransactionModal() {
   const [date,          setDate]          = useState<Date>(existing ? startOfDay(new Date(existing.date)) : today);
   const [showAdvanced,  setShowAdvanced]  = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(existing?.payment_method ?? null);
-  const [isSaving,        setIsSaving]        = useState(false);
-  const [error,           setError]           = useState('');
-  const [success,         setSuccess]         = useState(false);
-  const [showDeductStep,  setShowDeductStep]  = useState(false);
+  const [isSaving,       setIsSaving]       = useState(false);
+  const [isDeleting,     setIsDeleting]     = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error,          setError]          = useState('');
+  const [success,        setSuccess]        = useState(false);
+  const [showDeductStep, setShowDeductStep] = useState(false);
+  const [showOverdraftSheet, setShowOverdraftSheet] = useState(false);
 
   const { items: recurringItems, load: loadRecurring, toggleDeduct } = useRecurringStore();
 
@@ -83,38 +87,79 @@ export default function AddTransactionModal() {
     }
   }, [type, availableCategories.length]);
 
-  const handleSave = async () => {
-    setError('');
-    const amount = parseCurrencyInput(amountStr);
-    if (amount <= 0)   { setError('Please enter an amount greater than 0.'); return; }
-    if (!categoryId)   { setError('Please select a category.'); return; }
-    if (!user)         { setError('You must be logged in.'); return; }
+  // ── Live overdraft indicator ─────────────────────────────────────────────
+  const typedAmount = parseCurrencyInput(amountStr);
 
-    const dateStr = format(date, 'yyyy-MM-dd');
+  // Identical formula to the dashboard:
+  //   available = thisMonthIncome − thisMonthExpenses − recurringBillsTotal
+  // So when the dashboard shows 0, this also sees 0 and warns on any expense.
+  const { monthlyIncome, monthlySpent } = React.useMemo(() => {
+    const monthStart = startOfMonth(date);
+    const monthEnd   = endOfMonth(date);
+    let income = 0, spent = 0;
+    for (const t of transactions) {
+      const d = parseISO(t.date);
+      if (d < monthStart || d > monthEnd) continue;
+      if (t.type === 'income')  income += t.amount;
+      if (t.type === 'expense') spent  += t.amount;
+    }
+    return { monthlyIncome: income, monthlySpent: spent };
+  }, [date, transactions]);
+
+  // Same billsTotal the dashboard uses (recurring obligations, converted to monthly)
+  const billsTotal = React.useMemo(() =>
+    recurringItems.reduce((s, i) => {
+      if (i.frequency === 'weekly') return s + i.amount * 52 / 12;
+      if (i.frequency === 'yearly') return s + i.amount / 12;
+      return s + i.amount;
+    }, 0),
+  [recurringItems]);
+
+  // available = what the dashboard shows as free money. If 0, warn on ANY expense.
+  const available      = Math.max(monthlyIncome - monthlySpent - billsTotal, 0);
+  const wouldOverdraft = !isEditing && type === 'expense' && typedAmount > 0 && typedAmount > available;
+  const overdraftBy    = wouldOverdraft ? typedAmount - available : 0;
+
+  // ── Core save (used by both normal path and overdraft confirmation) ─────────
+  const doSave = async (incomeSource?: { label: string; tags: string[] }) => {
+    if (!user) return;
     setIsSaving(true);
+    setError('');
+    const amount  = parseCurrencyInput(amountStr);
+    const dateStr = format(date, 'yyyy-MM-dd');
     try {
+      // Optionally log where the money came from
+      if (incomeSource) {
+        const incomeCat = categories.find(c => c.type === 'income' || c.type === 'both') ?? categories[0];
+        await addTransaction(user.id, {
+          type: 'income', amount, date: dateStr,
+          category_id: incomeCat?.id ?? null,
+          note: incomeSource.label,
+          payment_method: null,
+          tags: incomeSource.tags,
+          is_recurring: false, group_id: null, user_id: user.id,
+        });
+      }
+      // Save the actual transaction
       if (isEditing && existing) {
         await editTransaction(existing.id, {
           type, amount, date: dateStr,
-          category_id:    categoryId,
-          note:           note.trim() || null,
+          category_id: categoryId,
+          note: note.trim() || null,
           payment_method: (paymentMethod as any) ?? null,
         });
       } else {
         await addTransaction(user.id, {
           type, amount, date: dateStr,
-          category_id:    categoryId,
-          note:           note.trim() || null,
+          category_id: categoryId,
+          note: note.trim() || null,
           payment_method: (paymentMethod as any) ?? null,
-          tags:           [],
-          is_recurring:   false,
-          group_id:       null,
-          user_id:        user.id,
+          tags: [], is_recurring: false, group_id: null, user_id: user.id,
         });
       }
       hapticSuccess();
       setSuccess(true);
-      // For new income transactions: ask about deductions if recurring items exist
+      setShowOverdraftSheet(false);
       if (!isEditing && type === 'income' && recurringItems.length > 0) {
         setTimeout(() => setShowDeductStep(true), 400);
       } else {
@@ -127,6 +172,36 @@ export default function AddTransactionModal() {
       setError(err.message ?? 'Could not save. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setError('');
+    if (typedAmount <= 0) { setError('Please enter an amount greater than 0.'); return; }
+    if (!categoryId)      { setError('Please select a category.'); return; }
+    if (!user)            { setError('You must be logged in.'); return; }
+
+    if (wouldOverdraft) {
+      setShowOverdraftSheet(true); // open the sheet — don't save yet
+      return;
+    }
+    await doSave();
+  };
+
+  const handleDelete = async () => {
+    if (!existing) return;
+    setIsDeleting(true);
+    setError('');
+    try {
+      await removeTransaction(existing.id);
+      hapticSuccess();
+      setShowDeleteConfirm(false);
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)');
+    } catch (err: any) {
+      setError(err.message ?? 'Could not delete. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -261,11 +336,27 @@ export default function AddTransactionModal() {
               keyboardType="decimal-pad"
               placeholder="0.00"
               placeholderTextColor={C.textTertiary}
-              style={[styles.amountInput, { color: C.textPrimary }]}
+              style={[styles.amountInput, { color: wouldOverdraft ? '#EF4444' : C.textPrimary }]}
               autoFocus={!isEditing}
               maxLength={12}
             />
           </View>
+
+          {/* Live overdraft warning banner */}
+          {wouldOverdraft && (
+            <TouchableOpacity
+              onPress={() => setShowOverdraftSheet(true)}
+              style={styles.overdraftBanner}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.overdraftBannerIcon}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.overdraftBannerTitle}>Over your balance by {formatCurrency(overdraftBy, currency)}</Text>
+                <Text style={styles.overdraftBannerSub}>Tap to tell us where this money is coming from</Text>
+              </View>
+              <Text style={styles.overdraftBannerArrow}>›</Text>
+            </TouchableOpacity>
+          )}
 
           {/* ── Date Picker ─────────────────────────────── */}
           <View style={[styles.dateSection, { backgroundColor: C.surfaceRaised, borderRadius: BorderRadius.xl }]}>
@@ -393,9 +484,144 @@ export default function AddTransactionModal() {
             style={styles.saveBtn}
           />
 
+          {/* Delete button — edit mode only */}
+          {isEditing && (
+            <TouchableOpacity
+              onPress={() => setShowDeleteConfirm(true)}
+              style={[styles.deleteBtn, { borderColor: C.danger + '40' }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.deleteBtnText, { color: C.danger }]}>Delete transaction</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={{ height: Spacing[6] }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Delete confirmation sheet ─────────────────────────────────────── */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity
+            style={styles.sheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowDeleteConfirm(false)}
+          />
+          <View style={[styles.sheetPanel, { backgroundColor: C.isDark ? '#2D3B50' : '#FFFFFF' }]}>
+            <View style={styles.sheetHandle} />
+            <View style={{ padding: Spacing[5], gap: Spacing[4] }}>
+              {/* Warning header */}
+              <View style={[styles.deleteConfirmHeader, { backgroundColor: C.dangerLight }]}>
+                <Text style={{ fontSize: 28 }}>🗑️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.deleteConfirmTitle, { color: C.danger }]}>Delete this transaction?</Text>
+                  <Text style={[styles.deleteConfirmSub, { color: C.textSecondary }]}>
+                    {existing?.note
+                      ? `"${existing.note}" · ${formatCurrency(existing?.amount ?? 0, currency)}`
+                      : `${formatCurrency(existing?.amount ?? 0, currency)} ${type} · this cannot be undone`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action buttons */}
+              <TouchableOpacity
+                onPress={handleDelete}
+                disabled={isDeleting}
+                style={[styles.deleteConfirmBtn, { backgroundColor: C.danger }]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deleteConfirmBtnText}>
+                  {isDeleting ? 'Deleting…' : 'Yes, delete it'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowDeleteConfirm(false)}
+                style={[styles.deleteCancelBtn, { backgroundColor: C.surfaceRaised }]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.deleteCancelBtnText, { color: C.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Overdraft source sheet ─────────────────────────────────────────── */}
+      <Modal
+        visible={showOverdraftSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowOverdraftSheet(false)}
+      >
+        <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity
+            style={styles.sheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowOverdraftSheet(false)}
+          />
+          <View style={[styles.sheetPanel, { backgroundColor: C.isDark ? '#2D3B50' : '#FFFFFF' }]}>
+            {/* Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Warning header */}
+            <View style={[styles.sheetWarningHeader, { backgroundColor: '#FEF3C7' }]}>
+              <Text style={styles.sheetWarningIcon}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sheetWarningTitle, { color: '#92400E' }]}>
+                  This is {formatCurrency(overdraftBy, currency)} over your balance
+                </Text>
+                <Text style={[styles.sheetWarningBody, { color: '#B45309' }]}>
+                  You have {formatCurrency(available, currency)} left this month.
+                  Where did this money come from?
+                </Text>
+              </View>
+            </View>
+
+            {/* Source options */}
+            {([
+              { icon: '💸', title: 'I borrowed it',               subtitle: 'From a friend, family or someone else',  label: 'Borrowed money',                    tags: ['borrowed', 'debt'] },
+              { icon: '💳', title: 'Credit / Buy now pay later',  subtitle: 'Card debt, BNPL or instalment plan',     label: 'Credit / BNPL spend',               tags: ['credit', 'debt']  },
+              { icon: '🏦', title: 'From another account',        subtitle: 'Savings account, e-wallet or other bank',label: 'Transfer in from another account',  tags: ['transfer']         },
+              { icon: '🎁', title: 'Gift or money received',      subtitle: 'Cash gift or someone paid on your behalf',label: 'Gift / money received',             tags: ['gift']             },
+            ] as const).map(src => (
+              <TouchableOpacity
+                key={src.title}
+                disabled={isSaving}
+                onPress={() => { hapticSelect(); doSave({ label: src.label, tags: [...src.tags] }); }}
+                style={[styles.sheetOption, { borderBottomColor: C.divider }]}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.sheetOptionIcon}>{src.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.sheetOptionTitle, { color: C.textPrimary }]}>{src.title}</Text>
+                  <Text style={[styles.sheetOptionSub,   { color: C.textTertiary }]}>{src.subtitle}</Text>
+                </View>
+                <Text style={[styles.sheetOptionChevron, { color: C.textTertiary }]}>›</Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* Just save it */}
+            <TouchableOpacity
+              disabled={isSaving}
+              onPress={() => doSave()}
+              style={styles.sheetSkip}
+              activeOpacity={0.7}
+            >
+              {isSaving
+                ? <ActivityIndicator color={C.textTertiary} />
+                : <Text style={[styles.sheetSkipText, { color: C.textTertiary }]}>
+                    Just record the expense — I'll sort it later
+                  </Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -506,6 +732,78 @@ const styles = StyleSheet.create({
   paymentLabel: { ...Typography.labelSmall },
 
   saveBtn: { marginTop: Spacing[2] },
+
+  // Delete button (edit mode)
+  deleteBtn: {
+    marginTop: Spacing[1], paddingVertical: Spacing[3.5],
+    borderRadius: BorderRadius.full, alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  deleteBtnText: { ...Typography.labelLarge, fontWeight: '700' },
+
+  // Delete confirm sheet
+  deleteConfirmHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing[3],
+    borderRadius: BorderRadius.xl, padding: Spacing[4],
+  },
+  deleteConfirmTitle: { ...Typography.labelLarge, fontWeight: '700' },
+  deleteConfirmSub:   { ...Typography.bodySmall, marginTop: 3, lineHeight: 18 },
+  deleteConfirmBtn: {
+    borderRadius: BorderRadius.full, paddingVertical: Spacing[4],
+    alignItems: 'center',
+  },
+  deleteConfirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  deleteCancelBtn: {
+    borderRadius: BorderRadius.full, paddingVertical: Spacing[4],
+    alignItems: 'center',
+  },
+  deleteCancelBtnText: { fontWeight: '600', fontSize: 15 },
+
+  // Live overdraft banner (inline in form)
+  overdraftBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing[3],
+    backgroundColor: '#FEF3C7', borderRadius: BorderRadius.xl,
+    padding: Spacing[3.5],
+  },
+  overdraftBannerIcon:  { fontSize: 20 },
+  overdraftBannerTitle: { ...Typography.labelLarge, color: '#92400E' },
+  overdraftBannerSub:   { ...Typography.caption, color: '#B45309', marginTop: 2 },
+  overdraftBannerArrow: { fontSize: 20, color: '#92400E', fontWeight: '300' },
+
+  // Overdraft bottom sheet Modal
+  sheetOverlay:  { flex: 1, justifyContent: 'flex-end' },
+  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheetPanel: {
+    borderTopLeftRadius: BorderRadius['3xl'], borderTopRightRadius: BorderRadius['3xl'],
+    paddingTop: Spacing[2], paddingBottom: Spacing[8], overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15, shadowRadius: 16, elevation: 24,
+  },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: '#94A3B8',
+    alignSelf: 'center', marginBottom: Spacing[3], opacity: 0.5,
+  },
+  sheetWarningHeader: {
+    flexDirection: 'row', gap: Spacing[3], alignItems: 'flex-start',
+    margin: Spacing[4], borderRadius: BorderRadius.xl, padding: Spacing[4],
+  },
+  sheetWarningIcon:  { fontSize: 22 },
+  sheetWarningTitle: { ...Typography.labelLarge },
+  sheetWarningBody:  { ...Typography.bodySmall, lineHeight: 20, marginTop: 3 },
+  sheetOption: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing[3],
+    paddingHorizontal: Spacing[5], paddingVertical: Spacing[3.5],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sheetOptionIcon:    { fontSize: 24 },
+  sheetOptionTitle:   { ...Typography.labelLarge },
+  sheetOptionSub:     { ...Typography.caption, marginTop: 2 },
+  sheetOptionChevron: { fontSize: 22, fontWeight: '300' },
+  sheetSkip: {
+    marginHorizontal: Spacing[5], marginTop: Spacing[3],
+    paddingVertical: Spacing[3.5], alignItems: 'center',
+  },
+  sheetSkipText: { ...Typography.bodySmall, textAlign: 'center' },
 
   deductContent:      { paddingHorizontal: Spacing[5], paddingTop: Spacing[5], gap: Spacing[3], paddingBottom: Spacing[10] },
   deductSubtitle:     { ...Typography.bodyMedium, lineHeight: 22 },

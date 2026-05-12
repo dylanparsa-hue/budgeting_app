@@ -4,18 +4,22 @@ import { fetchBudgets, upsertBudget, deleteBudget } from '../services/supabase';
 import { Storage, StorageKeys } from '../services/storage';
 
 interface BudgetState {
-  budgets:    Budget[];
-  isLoading:  boolean;
+  budgets:          Budget[];
+  isLoading:        boolean;
+  savingsTargetPct: number;   // user-chosen savings % (5–30), default 20
 
-  loadBudgets:   (userId: string, month: number, year: number) => Promise<void>;
-  saveBudget:    (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<void>;
-  removeBudget:  (id: string) => Promise<void>;
-  getBudgetWithSpend: (budgetId: string, spent: number) => Budget | undefined;
+  loadBudgets:          (userId: string, month: number, year: number) => Promise<void>;
+  saveBudget:           (data: Omit<Budget, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<void>;
+  removeBudget:         (id: string) => Promise<void>;
+  getBudgetWithSpend:   (budgetId: string, spent: number) => Budget | undefined;
+  loadSavingsPct:       () => Promise<void>;
+  setSavingsTargetPct:  (pct: number) => Promise<void>;
 }
 
 export const useBudgetStore = create<BudgetState>((set, get) => ({
-  budgets:   [],
-  isLoading: false,
+  budgets:          [],
+  isLoading:        false,
+  savingsTargetPct: 20,
 
   loadBudgets: async (userId, month, year) => {
     set({ isLoading: true });
@@ -58,5 +62,15 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   getBudgetWithSpend: (budgetId, spent) => {
     const budget = get().budgets.find(b => b.id === budgetId);
     return budget ? { ...budget, spent } : undefined;
+  },
+
+  loadSavingsPct: async () => {
+    const saved = await Storage.get<number>(StorageKeys.SAVINGS_PCT);
+    if (saved != null) set({ savingsTargetPct: saved });
+  },
+
+  setSavingsTargetPct: async (pct) => {
+    set({ savingsTargetPct: pct });
+    await Storage.set(StorageKeys.SAVINGS_PCT, pct);
   },
 }));

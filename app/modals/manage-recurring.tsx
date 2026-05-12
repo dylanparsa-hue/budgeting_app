@@ -28,6 +28,7 @@ import { useTheme }           from '../../src/theme/ThemeContext';
 import { Typography }         from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import { formatCurrency }     from '../../src/utils/currency';
+import { Pencil, Trash2 }    from 'lucide-react-native';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -130,14 +131,14 @@ function RecurringRow({
             style={[S.actionBtn, { backgroundColor: C.primaryLight }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={S.actionEmoji}>✏️</Text>
+            <Pencil size={13} color={C.primary} strokeWidth={2.5} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={confirmDelete}
             style={[S.actionBtn, { backgroundColor: C.dangerLight }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={S.actionEmoji}>🗑️</Text>
+            <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
       </View>

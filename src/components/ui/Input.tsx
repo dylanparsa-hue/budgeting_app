@@ -4,7 +4,7 @@ import {
   StyleSheet, TextInputProps, ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
-import { Typography, FontSize } from '../../theme/typography';
+import { Typography, FontSize, FontFamily } from '../../theme/typography';
 import { BorderRadius, Spacing } from '../../theme/spacing';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
@@ -30,7 +30,7 @@ export function Input({
         style={[
           styles.inputRow,
           { backgroundColor: C.surfaceRaised, borderColor: C.border },
-          focused && { borderColor: C.primary, backgroundColor: C.primaryLight },
+          focused && { borderColor: C.black, backgroundColor: C.surface },
           !!error && { borderColor: C.danger },
         ]}
       >
@@ -54,9 +54,9 @@ export function Input({
         )}
       </View>
       {error ? (
-        <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
+        <Text style={[styles.helperText, { color: C.danger }]}>{error}</Text>
       ) : hint ? (
-        <Text style={[styles.hintText, { color: C.textTertiary }]}>{hint}</Text>
+        <Text style={[styles.helperText, { color: C.textTertiary }]}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -67,9 +67,11 @@ interface AmountInputProps {
   onChangeText: (v: string) => void;
   currency?:    string;
   style?:       ViewStyle;
+  color?:       string;
+  autoFocus?:   boolean;
 }
 
-export function AmountInput({ value, onChangeText, currency = 'RM', style }: AmountInputProps) {
+export function AmountInput({ value, onChangeText, currency = '$', style, color, autoFocus }: AmountInputProps) {
   const C = useTheme();
   return (
     <View style={[styles.amountContainer, style]}>
@@ -78,9 +80,10 @@ export function AmountInput({ value, onChangeText, currency = 'RM', style }: Amo
         value={value}
         onChangeText={onChangeText}
         keyboardType="decimal-pad"
-        placeholder="0.00"
+        placeholder="0"
         placeholderTextColor={C.textTertiary}
-        style={[styles.amountInput, { color: C.textPrimary }]}
+        autoFocus={autoFocus}
+        style={[styles.amountInput, { color: color ?? C.textPrimary }]}
         maxLength={12}
       />
     </View>
@@ -92,28 +95,29 @@ const styles = StyleSheet.create({
   label:      { ...Typography.labelLarge },
   inputRow: {
     flexDirection: 'row', alignItems: 'center',
-    borderRadius: BorderRadius.lg, borderWidth: 1.5, height: 52,
+    borderRadius: BorderRadius.full, borderWidth: 1.5, height: 52,
   },
   input: {
-    flex: 1, paddingHorizontal: Spacing[4], ...Typography.bodyMedium,
+    flex: 1, paddingHorizontal: Spacing[5], ...Typography.bodyMedium,
   },
-  inputWithLeft:  { paddingLeft:  Spacing[1] },
-  inputWithRight: { paddingRight: Spacing[1] },
-  leftIcon:  { paddingLeft:  Spacing[4] },
-  rightIcon: { paddingRight: Spacing[4] },
-  errorText: { ...Typography.caption },
-  hintText:  { ...Typography.caption },
+  inputWithLeft:  { paddingLeft:  Spacing[2] },
+  inputWithRight: { paddingRight: Spacing[2] },
+  leftIcon:   { paddingLeft:  Spacing[4] },
+  rightIcon:  { paddingRight: Spacing[4] },
+  helperText: { ...Typography.caption },
 
   amountContainer: {
     flexDirection: 'row', alignItems: 'flex-end',
     justifyContent: 'center', paddingVertical: Spacing[4],
   },
   currencySymbol: {
+    fontFamily: FontFamily.semibold,
     fontSize: FontSize.xl, fontWeight: '600',
-    marginBottom: 4, marginRight: Spacing[1],
+    marginBottom: 8, marginRight: Spacing[1],
   },
   amountInput: {
+    fontFamily: FontFamily.display,
     fontSize: FontSize['4xl'], fontWeight: '700',
-    letterSpacing: -1, minWidth: 80, textAlign: 'center',
+    letterSpacing: -1.5, minWidth: 80, textAlign: 'center',
   },
 });

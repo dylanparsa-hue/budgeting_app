@@ -49,4 +49,6 @@ export const StorageKeys = {
   NOTIF_PREFS:   'notification_prefs',
   DISMISSED_IDS: 'dismissed_insight_ids',
   APP_START_DATE: 'app_start_date',
+  DEBTS:         'debts',
+  SAVINGS_PCT:   'savings_target_pct',
 } as const;

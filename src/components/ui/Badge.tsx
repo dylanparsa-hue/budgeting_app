@@ -17,17 +17,17 @@ export function Badge({ label, variant = 'default', style }: BadgeProps) {
 
   const variantMap: Record<BadgeVariant, { bg: string; text: string }> = {
     default: { bg: C.surfaceRaised, text: C.textSecondary },
-    primary: { bg: C.primaryLight,  text: C.primary },
-    success: { bg: C.successLight,  text: C.success },
-    warning: { bg: C.warningLight,  text: C.warning },
-    danger:  { bg: C.dangerLight,   text: C.danger },
-    info:    { bg: C.infoLight,     text: C.info },
+    primary: { bg: C.primaryLight,  text: '#4F8D2D' },
+    success: { bg: C.successLight,  text: '#3BB273' },
+    warning: { bg: C.warningLight,  text: '#B8470F' },
+    danger:  { bg: C.dangerLight,   text: C.danger  },
+    info:    { bg: C.infoLight,     text: C.info    },
   };
 
   const { bg, text } = variantMap[variant];
   return (
     <View style={[styles.badge, { backgroundColor: bg }, style]}>
-      <Text style={[styles.text, { color: text }]}>{label}</Text>
+      <Text style={[Typography.labelSmall, { color: text }]}>{label}</Text>
     </View>
   );
 }
@@ -35,9 +35,8 @@ export function Badge({ label, variant = 'default', style }: BadgeProps) {
 const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: Spacing[2.5],
-    paddingVertical:   Spacing[0.5],
+    paddingVertical:   Spacing[1],
     borderRadius:      BorderRadius.full,
     alignSelf:         'flex-start',
   },
-  text: { ...Typography.labelSmall },
 });

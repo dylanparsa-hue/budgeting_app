@@ -1,149 +1,144 @@
+/**
+ * Waddl color palette — drop-in replacement.
+ * Lime (#9FE870) primary, ink (#0E2417) dark hero, off-white (#F6F8F4) surface.
+ */
+
 export const lightColors = {
-  // ── Brand ──────────────────────────────────────────────
-  primary:        '#10B981', // emerald
-  primaryLight:   '#ECFDF5',
-  primaryDark:    '#059669',
+  primary:        '#9FE870',
+  primaryLight:   '#E6F9D9',
+  primaryDark:    '#79C247',
 
-  secondary:      '#3B82F6', // deep blue
-  secondaryLight: '#EFF6FF',
-  secondaryDark:  '#2563EB',
+  secondary:      '#0E2417',
+  secondaryLight: '#1A2B22',
+  secondaryDark:  '#000000',
 
-  accent:         '#8B5CF6', // violet
+  accent:         '#9FE870',
 
-  // ── Semantic ───────────────────────────────────────────
-  success:        '#10B981',
-  successLight:   '#ECFDF5',
-  warning:        '#F59E0B',
-  warningLight:   '#FFFBEB',
-  danger:         '#EF4444',
-  dangerLight:    '#FEF2F2',
-  info:           '#3B82F6',
-  infoLight:      '#EFF6FF',
+  success:        '#3BB273',
+  successLight:   '#E1F3E8',
+  warning:        '#F5B544',
+  warningLight:   '#FDF1D9',
+  danger:         '#E85D5D',
+  dangerLight:    '#FBE2E2',
+  info:           '#5B9DEB',
+  infoLight:      '#E1ECFB',
 
-  // ── Surfaces ───────────────────────────────────────────
   white:          '#FFFFFF',
-  black:          '#0F172A',
-  background:     '#F1F5F9',
+  black:          '#0E2417',
+  background:     '#F6F8F4',
   surface:        '#FFFFFF',
-  surfaceRaised:  '#F8FAFC',
+  surfaceRaised:  '#F6F8F4',
   surfaceCard:    '#FFFFFF',
 
-  // ── Text ───────────────────────────────────────────────
-  textPrimary:    '#0F172A',
-  textSecondary:  '#475569',
-  textTertiary:   '#94A3B8',
+  textPrimary:    '#0E2417',
+  textSecondary:  '#4A5A52',
+  textTertiary:   '#8A9A92',
   textInverse:    '#FFFFFF',
 
-  // ── Border ─────────────────────────────────────────────
-  border:         '#E2E8F0',
-  borderLight:    '#F1F5F9',
-  divider:        '#F1F5F9',
+  border:         '#E8EDE6',
+  borderLight:    '#EEF1EA',
+  divider:        '#EEF1EA',
 
-  // ── Hero gradient (dark card on light bg) ──────────────
-  heroGrad:       ['#0F172A', '#1E3A5F'] as string[],
+  heroGrad:       ['#0E2417', '#1A2B22'] as string[],
 
-  // ── Chart ──────────────────────────────────────────────
-  chart: ['#10B981', '#3B82F6', '#8B5CF6', '#F97316', '#EC4899', '#F59E0B'],
+  chart: ['#9FE870', '#5B9DEB', '#9B7EE0', '#FF8A65', '#E97FB5', '#F5B544'],
 
-  // ── Gradients ──────────────────────────────────────────
   gradients: {
-    primary:   ['#10B981', '#059669'] as string[],
-    secondary: ['#3B82F6', '#2563EB'] as string[],
-    hero:      ['#0F172A', '#0D3251'] as string[],
-    emerald:   ['#10B981', '#6EE7B7'] as string[],
-    blue:      ['#3B82F6', '#93C5FD'] as string[],
-    sunset:    ['#F97316', '#FB923C'] as string[],
-    violet:    ['#8B5CF6', '#A78BFA'] as string[],
-    dark:      ['#1E293B', '#334155'] as string[],
+    primary:   ['#9FE870', '#79C247'] as string[],
+    secondary: ['#0E2417', '#1A2B22'] as string[],
+    hero:      ['#0E2417', '#1A2B22'] as string[],
+    emerald:   ['#9FE870', '#C8F09C'] as string[],
+    blue:      ['#5B9DEB', '#A9CBF5'] as string[],
+    sunset:    ['#FF8A65', '#FFB199'] as string[],
+    violet:    ['#9B7EE0', '#B8A4ED'] as string[],
+    dark:      ['#0E2417', '#1A2B22'] as string[],
   },
 
-  // ── Category colors ────────────────────────────────────
   category: {
-    food:          '#F97316',
-    transport:     '#3B82F6',
-    bills:         '#EAB308',
-    shopping:      '#EC4899',
-    entertainment: '#8B5CF6',
-    health:        '#EF4444',
-    education:     '#06B6D4',
-    others:        '#6B7280',
-    salary:        '#10B981',
-    freelance:     '#6366F1',
-    investment:    '#059669',
-    gift:          '#F43F5E',
+    food:          '#FF8A65',
+    transport:     '#5B9DEB',
+    bills:         '#F5B544',
+    shopping:      '#E97FB5',
+    entertainment: '#9B7EE0',
+    health:        '#E85D5D',
+    education:     '#5BCFCF',
+    others:        '#8A9A92',
+    salary:        '#3BB273',
+    freelance:     '#5B9DEB',
+    investment:    '#79C247',
+    gift:          '#E97FB5',
   },
 
   isDark: false,
 } as const;
 
 export const darkColors = {
-  primary:        '#10B981',
-  primaryLight:   '#064E3B',
-  primaryDark:    '#34D399',
+  primary:        '#B4F087',
+  primaryLight:   '#1F3A12',
+  primaryDark:    '#9FE870',
 
-  secondary:      '#3B82F6',
-  secondaryLight: '#1E3A5F',
-  secondaryDark:  '#60A5FA',
+  secondary:      '#9FE870',
+  secondaryLight: '#1F3A12',
+  secondaryDark:  '#C8F09C',
 
-  accent:         '#A78BFA',
+  accent:         '#B4F087',
 
-  success:        '#34D399',
-  successLight:   '#064E3B',
-  warning:        '#FCD34D',
-  warningLight:   '#451A03',
-  danger:         '#F87171',
-  dangerLight:    '#450A0A',
-  info:           '#60A5FA',
-  infoLight:      '#1E3A5F',
+  success:        '#6FD49A',
+  successLight:   '#0F2A1B',
+  warning:        '#F7C76A',
+  warningLight:   '#3A2A0A',
+  danger:         '#F08A8A',
+  dangerLight:    '#3A1414',
+  info:           '#88BBF0',
+  infoLight:      '#13243A',
 
   white:          '#FFFFFF',
-  black:          '#0F172A',
-  background:     '#0F172A',
-  surface:        '#1E293B',
-  surfaceRaised:  '#334155',
-  surfaceCard:    '#1E293B',
+  black:          '#0E2417',
+  background:     '#0A1A11',
+  surface:        '#162822',
+  surfaceRaised:  '#1F362D',
+  surfaceCard:    '#162822',
 
-  textPrimary:    '#F8FAFC',
-  textSecondary:  '#CBD5E1',
-  textTertiary:   '#64748B',
-  textInverse:    '#0F172A',
+  textPrimary:    '#F4F8F2',
+  textSecondary:  '#B8C5BD',
+  textTertiary:   '#6B7D72',
+  textInverse:    '#0E2417',
 
-  border:         '#334155',
-  borderLight:    '#1E293B',
-  divider:        '#1E293B',
+  border:         '#26392F',
+  borderLight:    '#1F362D',
+  divider:        '#1F362D',
 
-  heroGrad:       ['#10B981', '#3B82F6'] as string[],
+  heroGrad:       ['#0A1A11', '#162822'] as string[],
 
-  chart: ['#10B981', '#3B82F6', '#8B5CF6', '#F97316', '#EC4899', '#F59E0B'],
+  chart: ['#B4F087', '#88BBF0', '#B8A4ED', '#FFB199', '#F2A4CC', '#F7C76A'],
 
   gradients: {
-    primary:   ['#10B981', '#059669'] as string[],
-    secondary: ['#3B82F6', '#2563EB'] as string[],
-    hero:      ['#10B981', '#3B82F6'] as string[],
-    emerald:   ['#059669', '#10B981'] as string[],
-    blue:      ['#2563EB', '#3B82F6'] as string[],
-    sunset:    ['#F97316', '#FB923C'] as string[],
-    violet:    ['#7C3AED', '#8B5CF6'] as string[],
-    dark:      ['#1E293B', '#334155'] as string[],
+    primary:   ['#9FE870', '#79C247'] as string[],
+    secondary: ['#162822', '#1F362D'] as string[],
+    hero:      ['#0A1A11', '#162822'] as string[],
+    emerald:   ['#9FE870', '#C8F09C'] as string[],
+    blue:      ['#88BBF0', '#B8D2F5'] as string[],
+    sunset:    ['#FFB199', '#FFC9B8'] as string[],
+    violet:    ['#B8A4ED', '#D1C2F4'] as string[],
+    dark:      ['#162822', '#1F362D'] as string[],
   },
 
   category: {
-    food:          '#F97316',
-    transport:     '#3B82F6',
-    bills:         '#EAB308',
-    shopping:      '#EC4899',
-    entertainment: '#8B5CF6',
-    health:        '#EF4444',
-    education:     '#06B6D4',
-    others:        '#6B7280',
-    salary:        '#10B981',
-    freelance:     '#6366F1',
-    investment:    '#059669',
-    gift:          '#F43F5E',
+    food:          '#FFB199',
+    transport:     '#88BBF0',
+    bills:         '#F7C76A',
+    shopping:      '#F2A4CC',
+    entertainment: '#B8A4ED',
+    health:        '#F08A8A',
+    education:     '#84DEDE',
+    others:        '#B8C5BD',
+    salary:        '#6FD49A',
+    freelance:     '#88BBF0',
+    investment:    '#9FE870',
+    gift:          '#F2A4CC',
   },
 
   isDark: true,
 } as const;
 
-// Legacy export so existing imports don't break
 export const Colors = lightColors;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput,
+  KeyboardAvoidingView, Platform, TextInput, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,17 +24,19 @@ const YEAR  = now.getFullYear();
 export default function AddBudgetModal() {
   const C = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { user, profile }                 = useAuthStore();
-  const { categories }                    = useTransactionStore();
-  const { budgets, saveBudget }           = useBudgetStore();
+  const { user, profile }                           = useAuthStore();
+  const { categories }                              = useTransactionStore();
+  const { budgets, saveBudget, removeBudget }       = useBudgetStore();
 
   const existing  = id ? budgets.find(b => b.id === id) : null;
   const isEditing = !!existing;
 
-  const [categoryId, setCategoryId]       = useState(existing?.category_id ?? '');
-  const [amountStr,  setAmountStr]        = useState(existing ? String(existing.amount) : '');
-  const [isSaving,   setIsSaving]         = useState(false);
-  const [error,      setError]            = useState('');
+  const [categoryId, setCategoryId]         = useState(existing?.category_id ?? '');
+  const [amountStr,  setAmountStr]          = useState(existing ? String(existing.amount) : '');
+  const [isSaving,   setIsSaving]           = useState(false);
+  const [isDeleting, setIsDeleting]         = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error,      setError]              = useState('');
 
   const expenseCategories = getExpenseCategories(categories);
   const currency          = profile?.currency ?? 'MYR';
@@ -45,6 +47,8 @@ export default function AddBudgetModal() {
       setCategoryId(expenseCategories[0].id);
     }
   }, [expenseCategories.length]);
+
+  const goBack = () => router.canGoBack() ? router.back() : router.replace('/(tabs)/budgets');
 
   const handleSave = async () => {
     setError('');
@@ -61,8 +65,7 @@ export default function AddBudgetModal() {
         amount, period: 'monthly', month: MONTH, year: YEAR,
       });
       hapticSuccess();
-      if (router.canGoBack()) router.back();
-      else router.replace('/(tabs)/budgets');
+      goBack();
     } catch (err: any) {
       setError(err.message ?? 'Could not save budget. Please try again.');
     } finally {
@@ -70,14 +73,31 @@ export default function AddBudgetModal() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!existing) return;
+    setIsDeleting(true);
+    try {
+      await removeBudget(existing.id);
+      hapticSuccess();
+      setShowDeleteConfirm(false);
+      goBack();
+    } catch (err: any) {
+      setError(err.message ?? 'Could not delete budget. Please try again.');
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const catName = existing
+    ? (categories.find(c => c.id === existing.category_id)?.name ?? 'this budget')
+    : 'this budget';
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.surface }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.header, { borderBottomColor: C.border }]}>
-          <TouchableOpacity
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/budgets')}
-            style={[styles.closeBtn, { backgroundColor: C.surfaceRaised }]}
-          >
+          <TouchableOpacity onPress={goBack} style={[styles.closeBtn, { backgroundColor: C.surfaceRaised }]}>
             <Text style={[styles.closeBtnText, { color: C.textSecondary }]}>✕</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
@@ -145,8 +165,52 @@ export default function AddBudgetModal() {
             size="lg"
             style={{ marginTop: Spacing[4] }}
           />
+
+          {isEditing && (
+            <TouchableOpacity
+              onPress={() => { hapticSelect(); setShowDeleteConfirm(true); }}
+              style={[styles.deleteBtn, { borderColor: C.danger + '60' }]}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.deleteBtnText, { color: C.danger }]}>🗑️  Delete budget</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Delete confirmation sheet */}
+      <Modal visible={showDeleteConfirm} transparent animationType="slide" onRequestClose={() => setShowDeleteConfirm(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowDeleteConfirm(false)} />
+          <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
+            <View style={[styles.deleteIconBox, { backgroundColor: C.dangerLight }]}>
+              <Text style={styles.deleteModalIcon}>🗑️</Text>
+            </View>
+            <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>Delete Budget?</Text>
+            <Text style={[styles.deleteModalBody, { color: C.textSecondary }]}>
+              This will remove the budget limit for{'\n'}
+              <Text style={{ fontWeight: '700', color: C.textPrimary }}>{catName}</Text>.
+              {'\n'}Your transactions won't be affected.
+            </Text>
+            <TouchableOpacity
+              onPress={handleDelete}
+              disabled={isDeleting}
+              style={[styles.deleteConfirmBtn, { backgroundColor: C.danger }]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.deleteConfirmBtnText}>
+                {isDeleting ? 'Deleting…' : 'Yes, delete it'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowDeleteConfirm(false)}
+              style={[styles.deleteCancelBtn, { backgroundColor: C.surfaceRaised }]}
+            >
+              <Text style={[styles.deleteCancelBtnText, { color: C.textPrimary }]}>Keep it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -181,4 +245,32 @@ const styles = StyleSheet.create({
   },
   catEmoji: { fontSize: 18 },
   catName:  { ...Typography.labelLarge },
+
+  deleteBtn: {
+    alignItems: 'center', paddingVertical: Spacing[4],
+    borderRadius: BorderRadius.xl, borderWidth: 1.5, marginTop: Spacing[1],
+  },
+  deleteBtnText: { ...Typography.labelLarge, fontWeight: '600' },
+
+  // Delete confirmation modal
+  modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet: {
+    borderTopLeftRadius: BorderRadius['3xl'], borderTopRightRadius: BorderRadius['3xl'],
+    padding: Spacing[6], paddingBottom: Spacing[10], gap: Spacing[4], alignItems: 'center',
+  },
+  deleteIconBox:      { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  deleteModalIcon:    { fontSize: 28 },
+  deleteModalTitle:   { ...Typography.headingSmall, textAlign: 'center' },
+  deleteModalBody:    { ...Typography.bodyMedium, textAlign: 'center', lineHeight: 24 },
+  deleteConfirmBtn:   {
+    width: '100%', alignItems: 'center', paddingVertical: Spacing[4],
+    borderRadius: BorderRadius.xl,
+  },
+  deleteConfirmBtnText: { ...Typography.labelLarge, color: '#fff', fontWeight: '700' },
+  deleteCancelBtn: {
+    width: '100%', alignItems: 'center', paddingVertical: Spacing[4],
+    borderRadius: BorderRadius.xl,
+  },
+  deleteCancelBtnText: { ...Typography.labelLarge },
 });

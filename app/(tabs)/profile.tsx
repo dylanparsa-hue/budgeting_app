@@ -5,7 +5,6 @@ import {
   Alert, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { format, subMonths, startOfMonth, parseISO } from 'date-fns';
 
@@ -15,6 +14,10 @@ import { useAppSettingsStore }   from '../../src/stores/appSettingsStore';
 import { useTheme }              from '../../src/theme/ThemeContext';
 import { Typography }            from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
+import {
+  DollarSign, Calendar, Bell, UserCircle, Users, Download,
+  HelpCircle, Star, FileText, LogOut,
+} from 'lucide-react-native';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -218,49 +221,45 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Avatar card */}
-        <LinearGradient
-          colors={C.gradients.hero as [string, string]}
-          style={styles.avatarCard}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <TouchableOpacity onPress={openEditProfile} style={styles.avatarCircle} activeOpacity={0.8}>
-            <Text style={styles.avatarInitials}>{initials || '👤'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.displayName}>{displayName}</Text>
-          <Text style={styles.emailText}>{user?.email}</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{transactions.length}</Text>
-              <Text style={styles.statLabel}>Transactions</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{currency}</Text>
-              <Text style={styles.statLabel}>Currency</Text>
-            </View>
+        {/* Profile card */}
+        <View style={[styles.profileCard, Shadow.sm, { backgroundColor: C.surface }]}>
+          <View style={[styles.initialsCircle, { backgroundColor: C.primaryLight }]}>
+            <Text style={[styles.initialsText, { color: '#4F8D2D' }]}>{initials || '👤'}</Text>
           </View>
-        </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.profileName, { color: C.textPrimary }]}>
+              {profile?.full_name ?? 'Your Name'}
+            </Text>
+            <Text style={[styles.profileEmail, { color: C.textTertiary }]}>
+              {user?.email ?? ''}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={openEditProfile}
+            style={[styles.editBtn, { borderColor: C.border }]}
+          >
+            <Text style={[styles.editBtnText, { color: C.textPrimary }]}>Edit</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Preferences */}
         <SettingsGroup title="Preferences" C={C}>
           <SettingRow
-            icon="💱"
+            icon={DollarSign}
             label="Currency"
             value={currency}
             onPress={() => setActiveSheet('currency')}
             C={C}
           />
           <SettingRow
-            icon="📅"
+            icon={Calendar}
             label="Tracking since"
             value={trackingLabel}
             onPress={() => setActiveSheet('tracking')}
             C={C}
           />
           <SettingRow
-            icon="🔔"
+            icon={Bell}
             label="Budget alerts"
             C={C}
             right={
@@ -276,16 +275,16 @@ export default function ProfileScreen() {
 
         {/* Account */}
         <SettingsGroup title="Account" C={C}>
-          <SettingRow icon="👤"      label="Edit profile"   onPress={openEditProfile}      C={C} />
-          <SettingRow icon="👨‍👩‍👧‍👦"  label="Family groups"  onPress={handleFamilyGroups}    C={C} />
-          <SettingRow icon="📤"      label="Export data"    onPress={handleExportData}      C={C} />
+          <SettingRow icon={UserCircle} label="Edit profile"   onPress={openEditProfile}      C={C} />
+          <SettingRow icon={Users}     label="Family groups"  onPress={handleFamilyGroups}    C={C} />
+          <SettingRow icon={Download}  label="Export data"    onPress={handleExportData}      C={C} />
         </SettingsGroup>
 
         {/* Support */}
         <SettingsGroup title="Support" C={C}>
-          <SettingRow icon="❓" label="Help & FAQ"     onPress={() => setActiveSheet('faq')} C={C} />
-          <SettingRow icon="⭐" label="Rate the app"   onPress={handleRateApp}               C={C} />
-          <SettingRow icon="📜" label="Privacy policy" onPress={handlePrivacyPolicy}          C={C} />
+          <SettingRow icon={HelpCircle} label="Help & FAQ"     onPress={() => setActiveSheet('faq')} C={C} />
+          <SettingRow icon={Star}      label="Rate the app"   onPress={handleRateApp}               C={C} />
+          <SettingRow icon={FileText}  label="Privacy policy" onPress={handlePrivacyPolicy}          C={C} />
         </SettingsGroup>
 
         {/* Logout */}
@@ -539,7 +538,7 @@ function SettingsGroup({ title, children, C }: { title: string; children: React.
 }
 
 interface RowProps {
-  icon:     string;
+  icon:     string | React.ComponentType<any>;
   label:    string;
   value?:   string;
   right?:   React.ReactNode;
@@ -548,6 +547,7 @@ interface RowProps {
 }
 
 function SettingRow({ icon, label, value, right, onPress, C }: RowProps) {
+  const IconComp = typeof icon !== 'string' ? icon as any : null;
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -555,7 +555,12 @@ function SettingRow({ icon, label, value, right, onPress, C }: RowProps) {
       activeOpacity={0.7}
       style={[styles.settingRow, { borderBottomColor: C.divider }]}
     >
-      <Text style={styles.rowIcon}>{icon}</Text>
+      <View style={[styles.rowIconBox, { backgroundColor: C.surfaceRaised }]}>
+        {IconComp
+          ? React.createElement(IconComp, { size: 18, color: C.textSecondary, strokeWidth: 2 })
+          : <Text style={styles.rowIcon}>{icon as string}</Text>
+        }
+      </View>
       <Text style={[styles.rowLabel, { color: C.textPrimary }]}>{label}</Text>
       <View style={styles.rowRight}>
         {value  && <Text style={[styles.rowValue, { color: C.textSecondary }]}>{value}</Text>}
@@ -574,21 +579,30 @@ const styles = StyleSheet.create({
   safe:    { flex: 1 },
   content: { paddingHorizontal: Spacing[5], paddingTop: Spacing[4], gap: Spacing[4], paddingBottom: Spacing[10] },
 
-  // Avatar
-  avatarCard: { borderRadius: BorderRadius['2xl'], padding: Spacing[6], alignItems: 'center', gap: Spacing[2] },
-  avatarCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing[1],
+  // Profile card
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderRadius: 20,
+    padding: 20,
   },
-  avatarInitials: { fontSize: 28, fontWeight: '700', color: '#fff' },
-  displayName:    { ...Typography.headingSmall, color: '#fff' },
-  emailText:      { ...Typography.bodySmall, color: 'rgba(255,255,255,0.75)' },
-  statsRow:   { flexDirection: 'row', alignItems: 'center', marginTop: Spacing[3], gap: Spacing[6] },
-  stat:       { alignItems: 'center', gap: Spacing[0.5] },
-  statValue:  { ...Typography.titleMedium, color: '#fff' },
-  statLabel:  { ...Typography.caption, color: 'rgba(255,255,255,0.75)' },
-  statDivider:{ width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.3)' },
+  initialsCircle: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  initialsText: {
+    fontFamily: Typography.headingSmall.fontFamily,
+    fontSize: 20, fontWeight: '700',
+  },
+  profileName: { ...Typography.titleMedium },
+  profileEmail: { ...Typography.bodySmall, marginTop: 2 },
+  editBtn: {
+    borderWidth: 1.5, borderRadius: 9999,
+    paddingHorizontal: 14, paddingVertical: 6,
+  },
+  editBtnText: { fontSize: 13, fontWeight: '600' },
 
   // Settings groups
   group:      { gap: Spacing[2] },
@@ -599,7 +613,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[3.5], paddingHorizontal: Spacing[4],
     gap: Spacing[3], borderBottomWidth: 1,
   },
-  rowIcon:  { fontSize: 20 },
+  rowIconBox: {
+    width: 34, height: 34, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', marginRight: 4,
+  },
+  rowIcon:  { fontSize: 18 },
   rowLabel: { flex: 1, ...Typography.bodyMedium },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing[2] },
   rowValue: { ...Typography.bodySmall },
