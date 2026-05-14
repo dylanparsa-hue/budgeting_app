@@ -5,16 +5,16 @@
  * Budgets this month section · Recent transactions section
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, useContext } from 'react';
-import { Switch } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  RefreshControl, TouchableOpacity, Animated,
+  RefreshControl, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView }   from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router }         from 'expo-router';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format } from 'date-fns';
+import { getBudgetMonthKey, getExpenseBudgetContributions } from '../../src/utils/budgetMonth';
 
 import { useAuthStore }         from '../../src/stores/authStore';
 import { useTransactionStore }  from '../../src/stores/transactionStore';
@@ -23,17 +23,16 @@ import { useGoalStore }         from '../../src/stores/goalStore';
 import { useRecurringStore }    from '../../src/stores/recurringStore';
 import { useNotificationStore } from '../../src/stores/notificationStore';
 import { useTheme }             from '../../src/theme/ThemeContext';
-import { Typography, FontFamily, FontSize } from '../../src/theme/typography';
-import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
+import { Typography, FontFamily } from '../../src/theme/typography';
+import { Shadow } from '../../src/theme/spacing';
 
 import { ProgressBar }  from '../../src/components/ui/ProgressBar';
 import { generateSmartInsights } from '../../src/services/insightEngine';
-import { generateBudgetPlan }   from '../../src/services/budgetAdvisor';
 import { formatCurrency }        from '../../src/utils/currency';
 import { CATEGORY_ICON }         from '../../src/lib/icons';
 
 import {
-  Bell, Plus, Sparkles, TrendingUp, Target, Package, ChevronRight, Pencil, Trash2,
+  Bell, Plus, Sparkles, TrendingUp, Package, Pencil, Trash2, Wallet,
 } from 'lucide-react-native';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,12 +48,6 @@ function shift(month: number, year: number, d: number) {
   if (m > 12) { m = 1; y++; }
   if (m < 1)  { m = 12; y--; }
   return { month: m, year: y };
-}
-
-function toMonthly(amount: number, freq: string) {
-  if (freq === 'weekly') return amount * 52 / 12;
-  if (freq === 'yearly') return amount / 12;
-  return amount;
 }
 
 function greeting() {
@@ -163,21 +156,14 @@ export default function HomeScreen() {
   const C = useTheme();
   const { profile, user }                               = useAuthStore();
   const { transactions, syncFromServer, loadFromCache, categories } = useTransactionStore();
-  const { budgets, loadBudgets, removeBudget, savingsTargetPct, loadSavingsPct } = useBudgetStore();
+  const { budgets, loadBudgets, removeBudget } = useBudgetStore();
   const { goals, loadGoals }                            = useGoalStore();
   const { items: recurring, load: loadRecurring }       = useRecurringStore();
   const { prefs, insights, setInsights, load: loadPrefs } = useNotificationStore();
   const [refreshing, setRefreshing]       = useState(false);
-  const [showPersonalBudget, setShowPersonalBudget] = useState(false);
 
-  // Keep animation refs alive (used by old tab logic — preserved)
-  const fadeAnim  = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-
-  // ── Month selector (unused in new design but logic preserved) ─────────────
-  const [sel, setSel] = useState({ month: MONTH, year: YEAR });
-  const isCurrent     = sel.month === MONTH && sel.year === YEAR;
-  const selDate       = new Date(sel.year, sel.month - 1, 1);
+  // ── Month selector (for selected-month stats) ────────────────────────────
+  const [sel] = useState({ month: MONTH, year: YEAR });
 
   const currency  = profile?.currency ?? 'MYR';
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there';
@@ -191,37 +177,81 @@ export default function HomeScreen() {
     loadGoals(user.id);
     loadRecurring();
     loadPrefs();
-    loadSavingsPct();
   }, [user?.id]);
 
-  // ── Recurring monthly totals ──────────────────────────────────────────────
-  const billItems = useMemo(() =>
-    recurring
-      .map(i => ({ ...i, monthly: toMonthly(i.amount, i.frequency) }))
-      .sort((a, b) => b.monthly - a.monthly),
-    [recurring]);
-  const billsTotal = billItems.reduce((s, i) => s + i.monthly, 0);
-
   // ── Current-month transaction totals ─────────────────────────────────────
-  const mStart = startOfMonth(NOW);
-  const mEnd   = endOfMonth(NOW);
+  const curMonthKey = format(NOW, 'yyyy-MM');
 
+  // Budget-month income: income attributed to THIS month via budget_month tag.
+  // Early-received next-month salary is intentionally EXCLUDED.
   const curIncome = useMemo(() =>
     transactions
-      .filter(t => t.type === 'income' && isWithinInterval(new Date(t.date), { start: mStart, end: mEnd }))
+      .filter(t => t.type === 'income' && getBudgetMonthKey(t) === curMonthKey)
       .reduce((s, t) => s + t.amount, 0),
     [transactions]);
 
-  const curSpend = useMemo(() =>
-    transactions
-      .filter(t => t.type === 'expense' && isWithinInterval(new Date(t.date), { start: mStart, end: mEnd }))
-      .reduce((s, t) => s + t.amount, 0),
-    [transactions]);
+  // Budget-month expenses: uses getExpenseBudgetContributions so that
+  // - obligation_month tags route pre-paid June obligations away from May, AND
+  // - budget_split tags correctly apportion over-budget expenses (the overflow
+  //   goes to the future month, keeping the current month from going negative).
+  const curSpend = useMemo(() => {
+    let total = 0;
+    for (const t of transactions) {
+      if (t.type !== 'expense') continue;
+      total += getExpenseBudgetContributions(t)[curMonthKey] ?? 0;
+    }
+    return total;
+  }, [transactions, curMonthKey]);
 
-  // True available = Income − Expenses − All Recurring
-  const available      = curIncome - curSpend - billsTotal;
-  // True spending = manual expenses + all recurring bills
-  const totalSpentCur  = curSpend + billsTotal;
+  // Monthly budget balance (this month's attributed income minus this month's expenses)
+  const monthBudgetBalance = curIncome - curSpend;
+
+  // All-time cash balance = every income received − every expense paid (real money in hand)
+  const cashBalance = useMemo(() => {
+    let bal = 0;
+    for (const t of transactions) {
+      if (t.type === 'income') bal += t.amount;
+      else bal -= t.amount;
+    }
+    return bal;
+  }, [transactions]);
+
+  // ── Per future-budget-month breakdown ────────────────────────────────────
+  // Computes the NET budget (income − pre-paid obligations) for every month
+  // after the current one.  Both income and expenses are bucketed by their
+  // budget-month attribution (tag or date), NOT their transaction date.
+  // Each bucket is capped at the actual cash balance so nothing misleading shows.
+  const futureBudgetMonths = useMemo(() => {
+    const netByKey = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.type === 'income') {
+        const key = getBudgetMonthKey(t);
+        if (key <= curMonthKey) continue;
+        netByKey.set(key, (netByKey.get(key) ?? 0) + t.amount);
+      } else if (t.type === 'expense') {
+        // Each contribution key may span the current month AND future months
+        // (split expenses have two keys: primary month + overflow month).
+        for (const [key, amount] of Object.entries(getExpenseBudgetContributions(t))) {
+          if (key <= curMonthKey) continue;
+          netByKey.set(key, (netByKey.get(key) ?? 0) - amount);
+        }
+      }
+    }
+    const available = Math.max(cashBalance, 0);
+    return Array.from(netByKey.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, net]) => ({
+        key,
+        label: (() => { try { return format(new Date(key + '-01'), 'MMMM'); } catch { return key; } })(),
+        net: Math.min(Math.max(net, 0), available),  // cap at real available cash
+      }))
+      .filter(m => m.net > 0);
+  }, [transactions, curMonthKey, cashBalance]);
+
+  // "available" used by insight engine stays as cash balance
+  const available     = cashBalance;
+  // Spent this month = actual expense transactions only
+  const totalSpentCur = curSpend;
   // True savings = intentional goal allocations only
   const totalInGoals   = useMemo(
     () => goals.reduce((s, g) => s + g.current_amount, 0),
@@ -239,8 +269,6 @@ export default function HomeScreen() {
 
   const selIncome = selStats.totalIncome;
   const selSpend  = selStats.totalExpenses;
-  const selNet    = selIncome - selSpend - billsTotal;
-  const topCats   = selStats.byCategory.slice(0, 4);
 
   const spendDelta = prevStats.totalExpenses > 0
     ? ((selSpend - prevStats.totalExpenses) / prevStats.totalExpenses) * 100
@@ -285,45 +313,19 @@ export default function HomeScreen() {
     }));
   }, [prefs, curStats, prevCurStats, budgetsWithSpend, goals, recurring, available]);
 
-  // ── AI Budget plan ────────────────────────────────────────────────────────
-  const aiBudgetPlan = useMemo(() => generateBudgetPlan({
-    transactions, recurring, goals, categories,
-    savingsOverridePct: savingsTargetPct,
-  }), [transactions, recurring, goals, categories, savingsTargetPct]);
-
-  // Top 2 most urgent recommendations (over/warning first, then good)
-  const topRecs = useMemo(() => {
-    const ranked = [...aiBudgetPlan.recommendations].sort((a, b) => {
-      const order = { over: 0, warning: 1, good: 2, excellent: 3 };
-      return order[a.status] - order[b.status];
-    });
-    return ranked.slice(0, 2);
-  }, [aiBudgetPlan]);
-
   // ── Goals ─────────────────────────────────────────────────────────────────
   const allActive   = goals.filter(g => !g.is_completed);
   const activeGoals = allActive.slice(0, 3);
 
   // ── Filtered recents ──────────────────────────────────────────────────────
-  const recentIncome   = transactions.filter(t => t.type === 'income').slice(0, 5);
-  const recentExpenses = transactions.filter(t => t.type === 'expense').slice(0, 5);
+  const recentTransactions = useMemo(() =>
+    [...transactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 6),
+    [transactions]);
 
-  // ── Tri-bar props (preserved for compatibility) ──────────────────────────
-  const barTotal = selIncome + selSpend + billsTotal;
-  const iPct = barTotal > 0 ? selIncome  / barTotal : 0;
-  const ePct = barTotal > 0 ? selSpend   / barTotal : 0;
-  const bPct = barTotal > 0 ? billsTotal / barTotal : 0;
-
-  // ── Hero balance (all-time net) ───────────────────────────────────────────
-  // True balance = all-time (income − expenses) − monthly recurring obligations
-  const heroBalance = useMemo(() => {
-    let bal = 0;
-    for (const t of transactions) {
-      if (t.type === 'income') bal += t.amount;
-      else bal -= t.amount;
-    }
-    return bal - billsTotal;
-  }, [transactions, billsTotal]);
+  // Hero balance = actual cash balance (all-time income received − expenses paid)
+  const heroBalance = cashBalance;
 
   const balFormatted = formatCurrency(Math.abs(heroBalance), currency);
   const balParts     = balFormatted.split('.');
@@ -387,7 +389,7 @@ export default function HomeScreen() {
 
           {/* Top row: label + W badge */}
           <View style={S.heroTopRow}>
-            <Text style={S.heroLabel}>TOTAL BALANCE</Text>
+            <Text style={S.heroLabel}>AVAILABLE CASH</Text>
             <View style={S.wBadge}>
               <Text style={S.wBadgeText}>W</Text>
             </View>
@@ -401,6 +403,33 @@ export default function HomeScreen() {
             <Text style={S.heroAmtCents}>.{centsPart}</Text>
           </View>
 
+          {/* This month's budget breakdown — 3-col grid */}
+          <View style={S.heroBudgetRow}>
+            <Text style={S.heroBudgetMonthLabel}>{format(NOW, 'MMMM')} budget</Text>
+            <View style={S.heroBudgetStatRow}>
+              <View style={S.heroBudgetStat}>
+                <Text style={S.heroBudgetStatLabel}>In</Text>
+                <Text style={S.heroBudgetStatVal}>{formatCurrency(curIncome, currency)}</Text>
+              </View>
+              <View style={S.heroBudgetStatDivider} />
+              <View style={S.heroBudgetStat}>
+                <Text style={S.heroBudgetStatLabel}>Out</Text>
+                <Text style={S.heroBudgetStatVal}>{formatCurrency(curSpend, currency)}</Text>
+              </View>
+              <View style={S.heroBudgetStatDivider} />
+              <View style={S.heroBudgetStat}>
+                <Text style={S.heroBudgetStatLabel}>
+                  {monthBudgetBalance >= 0 ? 'Left' : 'Over'}
+                </Text>
+                <Text style={[S.heroBudgetStatVal, {
+                  color: monthBudgetBalance >= 0 ? '#9FE870' : '#FF6B6B',
+                }]}>
+                  {formatCurrency(Math.abs(monthBudgetBalance), currency)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
           {/* Delta pill */}
           {heroDeltaText && (
             <View style={S.heroDeltaPill}>
@@ -408,13 +437,22 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* One pill per future budget month — keeps buckets clearly separate */}
+          {futureBudgetMonths.map(m => (
+            <View key={m.key} style={S.futureReservedPill}>
+              <Text style={S.futureReservedText}>
+                {formatCurrency(m.net, currency)} · {m.label} budget · received early
+              </Text>
+            </View>
+          ))}
+
           {/* Quick action chips */}
           <View style={S.heroChips}>
             {[
               { Icon: Plus,        label: 'Add',          onPress: () => router.push('/modals/add-transaction') },
               { Icon: TrendingUp,  label: 'Transactions', onPress: () => router.push('/(tabs)/transactions' as any) },
               { Icon: Sparkles,    label: 'Insights',     onPress: () => router.push('/(tabs)/budgets') },
-              { Icon: Target,      label: 'Goals',        onPress: () => router.push('/(tabs)/goals') },
+              { Icon: Wallet,      label: 'Finances',     onPress: () => router.push('/(tabs)/goals') },
             ].map(({ Icon, label, onPress }) => (
               <TouchableOpacity
                 key={label}
@@ -431,241 +469,161 @@ export default function HomeScreen() {
 
         {/* ════════ Mini stat cards ════════ */}
         <View style={S.miniCards}>
-          {/* Spent */}
-          <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
-            <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Spent this month</Text>
-            <Text style={[S.miniCardAmt, { color: C.textPrimary }]}>
-              {formatCurrency(totalSpentCur, currency, { compact: true })}
-            </Text>
-            {spendDelta !== null && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <Text style={[S.miniCardDelta, { color: spendDelta >= 0 ? C.danger : C.success }]}>
-                  {spendDelta >= 0 ? '↑' : '↓'} {formatCurrency(Math.abs(selSpend - prevStats.totalExpenses), currency, { compact: true })} vs last month
+          {/* This-month budget remaining */}
+          {(() => {
+            const remaining = monthBudgetBalance;
+            const color = remaining >= 0 ? C.success : C.danger;
+            return (
+              <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
+                <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>
+                  {format(NOW, 'MMMM')} budget
                 </Text>
+                <Text
+                  style={[S.miniCardAmt, { color }]}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  minimumFontScale={0.65}
+                >
+                  {remaining < 0 ? '−' : ''}{formatCurrency(Math.abs(remaining), currency)}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Text style={[S.miniCardDelta, { color: C.textTertiary }]}>
+                    {remaining >= 0 ? 'remaining' : 'over budget'}
+                    {spendDelta !== null && ` · ${spendDelta >= 0 ? '↑' : '↓'}${Math.abs(Math.round(spendDelta))}% spend`}
+                  </Text>
+                </View>
               </View>
-            )}
-          </View>
+            );
+          })()}
 
-          {/* Saved */}
-          <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
-            <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Saved this month</Text>
-            <Text style={[S.miniCardAmt, { color: C.textPrimary }]}>
-              {formatCurrency(totalInGoals, currency, { compact: true })}
-            </Text>
-            {allActive.length > 0 && (
+          {/* Future-month assigned income (one row per month) or goals if none */}
+          {futureBudgetMonths.length > 0 ? (
+            <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
+              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Future budget</Text>
+              <Text
+                style={[S.miniCardAmt, { color: '#F59E0B' }]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                minimumFontScale={0.65}
+              >
+                {formatCurrency(futureBudgetMonths.reduce((s, m) => s + m.net, 0), currency)}
+              </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <Text style={[S.miniCardDelta, { color: C.success }]}>
-                  {allActive.length} active goal{allActive.length !== 1 ? 's' : ''}
+                <Text style={[S.miniCardDelta, { color: C.textTertiary }]}>
+                  {futureBudgetMonths.map(m => m.label).join(' · ')} · received early
                 </Text>
               </View>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
+              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Saved this month</Text>
+              <Text
+                style={[S.miniCardAmt, { color: C.textPrimary }]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                minimumFontScale={0.65}
+              >
+                {formatCurrency(totalInGoals, currency)}
+              </Text>
+              {allActive.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Text style={[S.miniCardDelta, { color: C.success }]}>
+                    {allActive.length} active goal{allActive.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
-        {/* ════════ Budgets this month ════════ */}
+        {/* ════════ My Budgets ════════ */}
         <View style={S.sectionHeader}>
-          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>Budgets this month</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/budgets')}>
-            <Text style={[S.seeAll, { color: C.textSecondary }]}>See all</Text>
+          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>My Budgets</Text>
+          <TouchableOpacity onPress={() => router.push('/modals/add-budget')}>
+            <Text style={[S.seeAll, { color: C.primary }]}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
-        {/* AI ↔ Personal toggle row */}
-        <View style={[S.budgetToggleRow, { backgroundColor: C.surface }, Shadow.sm]}>
-          <View style={S.budgetToggleLeft}>
-            <View style={[S.budgetToggleIcon, { backgroundColor: showPersonalBudget ? C.surfaceRaised : '#9FE87020' }]}>
-              <Sparkles size={14} color={showPersonalBudget ? C.textTertiary : '#9FE870'} strokeWidth={2} />
-            </View>
-            <View>
-              <Text style={[S.budgetToggleTitle, { color: C.textPrimary }]}>
-                {showPersonalBudget ? 'My Budgets' : 'AI Recommended'}
-              </Text>
-              <Text style={[S.budgetToggleSub, { color: C.textTertiary }]}>
-                {showPersonalBudget ? 'Your custom limits' : 'Based on your habits'}
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={showPersonalBudget}
-            onValueChange={setShowPersonalBudget}
-            trackColor={{ false: '#9FE870', true: C.surfaceRaised }}
-            thumbColor={showPersonalBudget ? C.textSecondary : '#0E2417'}
-          />
-        </View>
-
-        {/* ── AI Budget view (default) ── */}
-        {!showPersonalBudget && (
+        {budgetsWithSpend.length > 0 ? (
           <>
-            {aiBudgetPlan.monthlyIncome === 0 ? (
-              <TouchableOpacity
-                onPress={() => router.push('/modals/add-transaction')}
-                style={[S.emptyCard, { backgroundColor: C.surface, borderColor: C.border }, Shadow.sm]}
-              >
-                <Text style={[S.emptyCardText, { color: C.textTertiary }]}>Add income to unlock AI budget recommendations</Text>
-              </TouchableOpacity>
-            ) : (
-              <>
-                {/* Compact coach message */}
-                <TouchableOpacity
-                  onPress={() => router.push('/(tabs)/budgets')}
-                  activeOpacity={0.85}
-                  style={[S.aiCoachCard, { backgroundColor: '#0E2417' }, Shadow.sm]}
-                >
-                  <View style={S.aiCoachBg} />
-                  {/* Top row: icon + score */}
-                  <View style={S.aiCoachRow}>
-                    <View style={S.aiCoachIconBox}>
-                      <Sparkles size={16} color="#9FE870" strokeWidth={2} />
+            <View style={[S.listCard, { backgroundColor: C.surface }, Shadow.sm]}>
+              {budgetsWithSpend.map((b, i) => {
+                const pct      = b.amount > 0 ? Math.min((b.spent ?? 0) / b.amount * 100, 100) : 0;
+                const barColor = pct > 90 ? C.danger : pct > 70 ? '#F59E0B' : C.success;
+                const cat      = categories.find(c => c.id === b.category_id);
+                const IconComp = cat ? (CATEGORY_ICON[cat.name?.toLowerCase()] ?? Package) : Package;
+                const catColor = cat?.color ?? C.primary;
+                const remaining = b.amount - (b.spent ?? 0);
+                return (
+                  <View
+                    key={b.id ?? i}
+                    style={[
+                      S.personalBudgetRow,
+                      i < budgetsWithSpend.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.divider },
+                    ]}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: catColor + '20', alignItems: 'center', justifyContent: 'center' }}>
+                      <IconComp size={20} color={catColor} strokeWidth={2.25} />
                     </View>
-                    <Text style={S.aiCoachLabel}>AI BUDGET COACH</Text>
-                    <View style={[S.aiHealthBadge, {
-                      backgroundColor: aiBudgetPlan.healthScore >= 80 ? '#9FE87025'
-                        : aiBudgetPlan.healthScore >= 55 ? '#F59E0B25' : '#EF444425',
-                    }]}>
-                      <Text style={[S.aiHealthNum, {
-                        color: aiBudgetPlan.healthScore >= 80 ? '#9FE870'
-                          : aiBudgetPlan.healthScore >= 55 ? '#F59E0B' : '#EF4444',
-                      }]}>{aiBudgetPlan.healthScore}</Text>
-                      <Text style={S.aiHealthSub}>score</Text>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{cat?.name ?? 'Budget'}</Text>
+                        <Text style={{ ...Typography.bodySmall, color: pct > 90 ? C.danger : C.textSecondary }}>
+                          {formatCurrency(b.spent ?? 0, currency, { compact: true })} / {formatCurrency(b.amount, currency, { compact: true })}
+                        </Text>
+                      </View>
+                      <ProgressBar progress={pct} color={barColor} height={6} animated />
+                      <Text style={{ ...Typography.caption, color: remaining >= 0 ? C.success : C.danger, marginTop: 3 }}>
+                        {remaining >= 0
+                          ? `${formatCurrency(remaining, currency, { compact: true })} left`
+                          : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} over`}
+                      </Text>
+                    </View>
+                    <View style={S.personalBudgetActions}>
+                      <TouchableOpacity
+                        onPress={() => router.push(`/modals/add-budget?id=${b.id}` as any)}
+                        style={[S.personalBudgetActionBtn, { backgroundColor: C.primaryLight }]}
+                      >
+                        <Pencil size={13} color={C.primary} strokeWidth={2.5} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => b.id && removeBudget(b.id)}
+                        style={[S.personalBudgetActionBtn, { backgroundColor: C.dangerLight }]}
+                      >
+                        <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
+                      </TouchableOpacity>
                     </View>
                   </View>
-                  {/* Full message — no numberOfLines, card expands */}
-                  <Text style={S.aiCoachMsg}>{aiBudgetPlan.coachMessage}</Text>
-                  <View style={S.aiCoachFooter}>
-                    <Text style={S.aiCoachFooterText}>View full AI budget plan</Text>
-                    <ChevronRight size={14} color="rgba(255,255,255,0.4)" strokeWidth={2} />
-                  </View>
-                </TouchableOpacity>
-
-                {/* AI category rows */}
-                <View style={[S.listCard, { backgroundColor: C.surface }, Shadow.sm]}>
-                  {aiBudgetPlan.recommendations
-                    .filter(r => r.priority !== 'savings')
-                    .slice(0, 4)
-                    .map((rec, i, arr) => {
-                      const pct      = rec.recommendedAmount > 0
-                        ? Math.min((rec.currentSpend / rec.recommendedAmount) * 100, 100) : 0;
-                      const barColor = rec.status === 'over' ? C.danger
-                        : rec.status === 'warning' ? '#F59E0B'
-                        : rec.status === 'excellent' ? C.success : C.primary;
-                      return (
-                        <View
-                          key={rec.id}
-                          style={[
-                            S.budgetRow,
-                            i < arr.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.divider },
-                          ]}
-                        >
-                          <View style={{
-                            width: 40, height: 40, borderRadius: 12,
-                            backgroundColor: rec.color + '20',
-                            alignItems: 'center', justifyContent: 'center', marginRight: 12,
-                          }}>
-                            <Text style={{ fontSize: 18 }}>{rec.icon}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{rec.categoryName}</Text>
-                              <Text style={{ ...Typography.bodySmall, color: C.textSecondary }}>
-                                {formatCurrency(rec.currentSpend, currency, { compact: true })} / {formatCurrency(rec.recommendedAmount, currency, { compact: true })}
-                              </Text>
-                            </View>
-                            <ProgressBar progress={pct} color={barColor} height={6} animated />
-                          </View>
-                        </View>
-                      );
-                    })
-                  }
-                </View>
-              </>
-            )}
+                );
+              })}
+            </View>
           </>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push('/modals/add-budget')}
+            style={[S.emptyCard, { backgroundColor: C.surface, borderColor: C.border }, Shadow.sm]}
+          >
+            <Text style={[S.emptyCardText, { color: C.textTertiary }]}>No budgets yet — tap to set spending limits</Text>
+          </TouchableOpacity>
         )}
 
-        {/* ── Personal Budget view (toggled) ── */}
-        {showPersonalBudget && (
-          budgetsWithSpend.length > 0 ? (
-            <>
-              <View style={[S.personalBudgetList, { backgroundColor: C.surface }, Shadow.sm]}>
-                {budgetsWithSpend.map((b, i) => {
-                  const pct      = b.amount > 0 ? Math.min((b.spent ?? 0) / b.amount * 100, 100) : 0;
-                  const barColor = pct > 90 ? C.danger : pct > 70 ? '#F59E0B' : C.success;
-                  const cat      = categories.find(c => c.id === b.category_id);
-                  const IconComp = cat ? (CATEGORY_ICON[cat.name?.toLowerCase()] ?? Package) : Package;
-                  const catColor = cat?.color ?? C.primary;
-                  return (
-                    <View
-                      key={b.id ?? i}
-                      style={[
-                        S.personalBudgetRow,
-                        i < budgetsWithSpend.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.divider },
-                      ]}
-                    >
-                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: catColor + '20', alignItems: 'center', justifyContent: 'center' }}>
-                        <IconComp size={20} color={catColor} strokeWidth={2.25} />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{cat?.name ?? 'Budget'}</Text>
-                          <Text style={{ ...Typography.bodySmall, color: pct > 90 ? C.danger : C.textSecondary }}>
-                            {formatCurrency(b.spent ?? 0, currency, { compact: true })} / {formatCurrency(b.amount, currency, { compact: true })}
-                          </Text>
-                        </View>
-                        <ProgressBar progress={pct} color={barColor} height={6} animated />
-                      </View>
-                      {/* Edit + Delete actions */}
-                      <View style={S.personalBudgetActions}>
-                        <TouchableOpacity
-                          onPress={() => router.push(`/modals/add-budget?id=${b.id}` as any)}
-                          style={[S.personalBudgetActionBtn, { backgroundColor: C.primaryLight }]}
-                        >
-                          <Pencil size={13} color={C.primary} strokeWidth={2.5} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => b.id && removeBudget(b.id)}
-                          style={[S.personalBudgetActionBtn, { backgroundColor: C.dangerLight }]}
-                        >
-                          <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-              <TouchableOpacity
-                onPress={() => router.push('/modals/add-budget')}
-                style={[S.addPersonalBudgetBtn, { borderColor: C.border }]}
-              >
-                <Text style={[S.addPersonalBudgetText, { color: C.primary }]}>+ Add another budget</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity
-              onPress={() => router.push('/modals/add-budget')}
-              style={[S.emptyCard, { backgroundColor: C.surface, borderColor: C.border }, Shadow.sm]}
-            >
-              <Text style={[S.emptyCardText, { color: C.textTertiary }]}>No personal budgets yet — tap to add one</Text>
-            </TouchableOpacity>
-          )
-        )}
-
-        {/* ════════ Recent transactions ════════ */}
+        {/* ════════ Recent Transactions ════════ */}
         <View style={[S.sectionHeader, { marginTop: 24 }]}>
-          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>Recent</Text>
+          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>Recent Transactions</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/transactions' as any)}>
             <Text style={[S.seeAll, { color: C.textSecondary }]}>See all →</Text>
           </TouchableOpacity>
         </View>
-        {recentExpenses.length > 0 ? (
+        {recentTransactions.length > 0 ? (
           <View style={[S.listCard, { backgroundColor: C.surface, marginBottom: 40 }, Shadow.sm]}>
-            {recentExpenses.slice(0, 5).map((tx, i) => (
+            {recentTransactions.map((tx, i) => (
               <RecentTxRow
                 key={tx.id}
                 tx={tx}
                 C={C}
                 currency={currency}
                 categories={categories}
-                isLast={i === Math.min(recentExpenses.length, 5) - 1}
+                isLast={i === recentTransactions.length - 1}
               />
             ))}
           </View>
@@ -780,8 +738,53 @@ const S = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 10,
   },
+  heroBudgetRow: {
+    marginTop: 10,
+  },
+  heroBudgetMonthLabel: {
+    fontSize: 10, fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  heroBudgetStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroBudgetStat: {
+    flex: 1,
+  },
+  heroBudgetStatLabel: {
+    fontSize: 10, fontWeight: '500',
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 2,
+  },
+  heroBudgetStatVal: {
+    fontSize: 13, fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: -0.2,
+  },
+  heroBudgetStatDivider: {
+    width: 1, height: 28,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginHorizontal: 10,
+  },
   heroDeltaText: {
     fontSize: 13, fontWeight: '600',
+  },
+  futureReservedPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(251,191,36,0.18)',
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.30)',
+  },
+  futureReservedText: {
+    fontSize: 12, fontWeight: '600', color: '#FCD34D',
   },
   heroChips: {
     flexDirection: 'row',
@@ -818,8 +821,9 @@ const S = StyleSheet.create({
   },
   miniCardAmt: {
     fontFamily: FontFamily.display,
-    fontSize: 26, fontWeight: '800',
+    fontSize: 22, fontWeight: '800',
     letterSpacing: -0.5,
+    marginTop: 2,
   },
   miniCardDelta: {
     fontSize: 12, fontWeight: '500',

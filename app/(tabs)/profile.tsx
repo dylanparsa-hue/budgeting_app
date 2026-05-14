@@ -16,8 +16,10 @@ import { Typography }            from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import {
   DollarSign, Calendar, Bell, UserCircle, Users, Download,
-  HelpCircle, Star, FileText, LogOut,
+  HelpCircle, Star, FileText, LogOut, Trash2,
 } from 'lucide-react-native';
+import { Storage } from '../../src/services/storage';
+import { useRecurringStore } from '../../src/stores/recurringStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -215,11 +217,42 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleClearLocalData = () => {
+    Alert.alert(
+      'Clear all local data?',
+      'This wipes all cached transactions, categories, recurring items, and goals from this device. Your cloud data (Supabase) is not affected — pull-to-refresh after clearing to sync a fresh copy.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear cache',
+          style: 'destructive',
+          onPress: async () => {
+            // Wipe every @budget:* key in AsyncStorage
+            await Storage.clear();
+            // Reset in-memory Zustand stores so UI reflects the cleared state
+            useTransactionStore.setState({ transactions: [], categories: [], lastSyncAt: null });
+            useRecurringStore.setState({ items: [], loaded: false });
+            Alert.alert(
+              '✅ Local cache cleared',
+              'Go to the Dashboard and pull down to refresh — it will sync your latest data from the server.',
+            );
+          },
+        },
+      ],
+    );
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Page title */}
+        <View style={styles.pageHeader}>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Account</Text>
+          <Text style={[styles.pageSub, { color: C.textSecondary }]}>Profile & settings.</Text>
+        </View>
 
         {/* Profile card */}
         <View style={[styles.profileCard, Shadow.sm, { backgroundColor: C.surface }]}>
@@ -278,6 +311,16 @@ export default function ProfileScreen() {
           <SettingRow icon={UserCircle} label="Edit profile"   onPress={openEditProfile}      C={C} />
           <SettingRow icon={Users}     label="Family groups"  onPress={handleFamilyGroups}    C={C} />
           <SettingRow icon={Download}  label="Export data"    onPress={handleExportData}      C={C} />
+        </SettingsGroup>
+
+        {/* Data */}
+        <SettingsGroup title="Data" C={C}>
+          <SettingRow
+            icon={Trash2}
+            label="Clear local cache"
+            onPress={handleClearLocalData}
+            C={C}
+          />
         </SettingsGroup>
 
         {/* Support */}
@@ -578,6 +621,11 @@ function SettingRow({ icon, label, value, right, onPress, C }: RowProps) {
 const styles = StyleSheet.create({
   safe:    { flex: 1 },
   content: { paddingHorizontal: Spacing[5], paddingTop: Spacing[4], gap: Spacing[4], paddingBottom: Spacing[10] },
+
+  // Page header
+  pageHeader: { paddingTop: Spacing[2], paddingBottom: Spacing[1] },
+  pageTitle:  { ...(Typography.headingLarge ?? {}), fontSize: 32, fontWeight: '800' },
+  pageSub:    { fontSize: 15, marginTop: 4 },
 
   // Profile card
   profileCard: {

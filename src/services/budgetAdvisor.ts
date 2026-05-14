@@ -9,6 +9,7 @@
  */
 
 import { Transaction } from '../types';
+import { getBudgetMonthKey } from '../utils/budgetMonth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -161,11 +162,11 @@ export function generateBudgetPlan({
   let totalIncome   = 0;
   let incomeMonths  = 0;
   for (const { month, year } of lookback) {
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+    // Use budget month (via tag) not transaction date so early-received income
+    // counts toward the month the user assigned it to.
     const mi = transactions
-      .filter(t => {
-        const d = new Date(t.date);
-        return t.type === 'income' && d.getMonth() + 1 === month && d.getFullYear() === year;
-      })
+      .filter(t => t.type === 'income' && getBudgetMonthKey(t) === monthKey)
       .reduce((s, t) => s + t.amount, 0);
     if (mi > 0) { totalIncome += mi; incomeMonths++; }
   }
@@ -175,12 +176,14 @@ export function generateBudgetPlan({
   const billsTotal  = recurring.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0);
   const disposable  = Math.max(monthlyIncome - billsTotal, 0);
 
-  // ── 3. Current-month spending by config key ───────────────────────────────
+  // ── 3. Current-month spending by config key (exclude recurring/fixed-bill transactions
+  //       — those are already accounted for in billsTotal above) ───────────────
   const curSpendByKey = new Map<string, number>();
   transactions
     .filter(t => {
       const d = new Date(t.date);
-      return t.type === 'expense' && d.getMonth() + 1 === curMonth && d.getFullYear() === curYear;
+      return t.type === 'expense' && !t.is_recurring &&
+             d.getMonth() + 1 === curMonth && d.getFullYear() === curYear;
     })
     .forEach(t => {
       const cat = categories.find(c => c.id === t.category_id);
@@ -188,13 +191,14 @@ export function generateBudgetPlan({
       curSpendByKey.set(key, (curSpendByKey.get(key) ?? 0) + t.amount);
     });
 
-  // ── 4. 3-month average spend per key ─────────────────────────────────────
+  // ── 4. 3-month average spend per key (non-recurring only) ─────────────────
   const avgSpendByKey = new Map<string, number>();
   for (const { month, year } of lookback) {
     transactions
       .filter(t => {
         const d = new Date(t.date);
-        return t.type === 'expense' && d.getMonth() + 1 === month && d.getFullYear() === year;
+        return t.type === 'expense' && !t.is_recurring &&
+               d.getMonth() + 1 === month && d.getFullYear() === year;
       })
       .forEach(t => {
         const cat = categories.find(c => c.id === t.category_id);

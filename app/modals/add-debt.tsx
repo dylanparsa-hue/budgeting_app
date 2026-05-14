@@ -13,6 +13,8 @@ import { Typography }    from '../../src/theme/typography';
 import { BorderRadius, Spacing } from '../../src/theme/spacing';
 import { parseCurrencyInput, formatCurrency } from '../../src/utils/currency';
 import { useAuthStore }  from '../../src/stores/authStore';
+import { X, AlertTriangle, Trash2 } from 'lucide-react-native';
+import { CreditCard } from 'lucide-react-native';
 
 export default function AddDebtModal() {
   const C = useTheme();
@@ -95,7 +97,7 @@ export default function AddDebtModal() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.header, { borderBottomColor: C.border }]}>
           <TouchableOpacity onPress={goBack} style={[styles.closeBtn, { backgroundColor: C.surfaceRaised }]}>
-            <Text style={[styles.closeBtnText, { color: C.textSecondary }]}>✕</Text>
+            <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
             {isEditing ? 'Edit Debt' : 'Track a Debt'}
@@ -106,7 +108,10 @@ export default function AddDebtModal() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[styles.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -217,7 +222,10 @@ export default function AddDebtModal() {
               style={[styles.deleteBtn, { borderColor: C.danger + '60' }]}
               activeOpacity={0.75}
             >
-              <Text style={[styles.deleteBtnText, { color: C.danger }]}>🗑️  Delete debt</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Trash2 size={16} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.deleteBtnText, { color: C.danger }]}>Delete debt</Text>
+              </View>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -229,7 +237,7 @@ export default function AddDebtModal() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowDelete(false)} />
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <View style={[styles.deleteIconBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={{ fontSize: 28 }}>💳</Text>
+              <CreditCard size={28} color={C.danger} strokeWidth={2} />
             </View>
             <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>Remove Debt?</Text>
             <Text style={[styles.deleteModalBody, { color: C.textSecondary }]}>

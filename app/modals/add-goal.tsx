@@ -25,7 +25,8 @@ import { Button }        from '../../src/components/ui/Button';
 import { useTheme }      from '../../src/theme/ThemeContext';
 import { Typography }    from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
-import { DEFAULT_GOAL_ICONS, DEFAULT_GOAL_COLORS } from '../../src/utils/categories';
+import { DEFAULT_GOAL_COLORS } from '../../src/utils/categories';
+import { GOAL_ICON_OPTIONS, X, Trash2, AlertTriangle, Check } from '../../src/lib/icons';
 import { parseCurrencyInput, formatCurrency } from '../../src/utils/currency';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
 
@@ -49,7 +50,7 @@ export default function AddGoalModal() {
   const [name,       setName]       = useState(existing?.name          ?? '');
   const [targetStr,  setTargetStr]  = useState(existing ? String(existing.target_amount)  : '');
   const [currentStr, setCurrentStr] = useState(existing ? String(existing.current_amount) : '');
-  const [icon,       setIcon]       = useState(existing?.icon  ?? DEFAULT_GOAL_ICONS[0]);
+  const [icon,       setIcon]       = useState(existing?.icon  ?? GOAL_ICON_OPTIONS[0].key);
   const [color,      setColor]      = useState(existing?.color ?? DEFAULT_GOAL_COLORS[0]);
   const [isSaving,   setIsSaving]   = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -135,7 +136,7 @@ export default function AddGoalModal() {
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/goals')}
             style={[S.closeBtn, { backgroundColor: C.surfaceRaised }]}
           >
-            <Text style={[S.closeBtnText, { color: C.textSecondary }]}>✕</Text>
+            <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[S.headerTitle, { color: C.textPrimary }]}>
             {isEditing ? 'Edit Goal' : 'New Goal'}
@@ -152,14 +153,20 @@ export default function AddGoalModal() {
           {/* Error */}
           {!!error && (
             <View style={[S.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[S.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[S.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           )}
 
           {/* Live preview */}
           <View style={[S.previewCard, { backgroundColor: color + '18', borderColor: color + '40' }]}>
             <View style={[S.previewIconWrap, { backgroundColor: color + '25' }]}>
-              <Text style={S.previewIconText}>{icon}</Text>
+              {(() => {
+                const PreviewIcon = GOAL_ICON_OPTIONS.find(o => o.key === icon)?.Icon ?? GOAL_ICON_OPTIONS[0].Icon;
+                return <PreviewIcon size={28} color={color} strokeWidth={2} />;
+              })()}
             </View>
             <View style={{ flex: 1, gap: Spacing[1.5] }}>
               <Text style={[S.previewName, { color: C.textPrimary }]} numberOfLines={1}>
@@ -229,17 +236,17 @@ export default function AddGoalModal() {
           <View style={S.fieldGroup}>
             <Text style={[S.label, { color: C.textPrimary }]}>Icon</Text>
             <View style={S.iconGrid}>
-              {DEFAULT_GOAL_ICONS.map(i => (
+              {GOAL_ICON_OPTIONS.map(({ key, Icon }) => (
                 <TouchableOpacity
-                  key={i}
-                  onPress={() => { hapticSelect(); setIcon(i); }}
+                  key={key}
+                  onPress={() => { hapticSelect(); setIcon(key); }}
                   style={[
                     S.iconBtn,
                     { backgroundColor: C.surfaceRaised },
-                    icon === i && { backgroundColor: color, ...Shadow.sm },
+                    icon === key && { backgroundColor: color, ...Shadow.sm },
                   ]}
                 >
-                  <Text style={S.iconEmoji}>{i}</Text>
+                  <Icon size={20} color={icon === key ? '#fff' : C.textSecondary} strokeWidth={2} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -259,7 +266,7 @@ export default function AddGoalModal() {
                     color === c && S.colorDotSelected,
                   ]}
                 >
-                  {color === c && <Text style={S.colorCheck}>✓</Text>}
+                  {color === c && <Check size={12} color="#fff" strokeWidth={3} />}
                 </TouchableOpacity>
               ))}
             </View>
@@ -282,9 +289,10 @@ export default function AddGoalModal() {
               style={[S.deleteBtn, { backgroundColor: C.dangerLight }]}
               activeOpacity={0.75}
             >
-              <Text style={[S.deleteBtnText, { color: C.danger }]}>
-                {isDeleting ? 'Deleting…' : '🗑️  Delete Goal'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Trash2 size={16} color={C.danger} strokeWidth={2} />
+                <Text style={[S.deleteBtnText, { color: C.danger }]}>{isDeleting ? 'Deleting…' : 'Delete Goal'}</Text>
+              </View>
             </TouchableOpacity>
           )}
 

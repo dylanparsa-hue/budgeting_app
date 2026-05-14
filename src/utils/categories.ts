@@ -1,7 +1,7 @@
 import { Category } from '../types';
 import { Colors } from '../theme/colors';
 
-export const DEFAULT_GOAL_ICONS = ['🎯', '🚗', '✈️', '🏠', '💍', '📱', '🎓', '🏥', '💰', '🌴', '🎸', '🐶'];
+export const DEFAULT_GOAL_ICONS = ['target', 'car', 'travel', 'home', 'ring', 'phone', 'education', 'health', 'savings', 'music', 'pet', 'baby'];
 // All values must be unique — no duplicates or React will warn about duplicate keys
 export const DEFAULT_GOAL_COLORS = [
   '#10B981', // emerald (primary)
@@ -15,11 +15,11 @@ export const DEFAULT_GOAL_COLORS = [
 ];
 
 export const PAYMENT_METHODS = [
-  { value: 'cash',     label: 'Cash',      icon: '💵' },
-  { value: 'card',     label: 'Card',      icon: '💳' },
-  { value: 'transfer', label: 'Transfer',  icon: '🔄' },
-  { value: 'ewallet',  label: 'eWallet',   icon: '📱' },
-  { value: 'other',    label: 'Other',     icon: '📦' },
+  { value: 'cash',     label: 'Cash',      icon: 'Banknote'   },
+  { value: 'card',     label: 'Card',      icon: 'CreditCard' },
+  { value: 'transfer', label: 'Transfer',  icon: 'ArrowRightLeft' },
+  { value: 'ewallet',  label: 'eWallet',   icon: 'Smartphone' },
+  { value: 'other',    label: 'Other',     icon: 'MoreHorizontal' },
 ] as const;
 
 export const getCategoryById = (categories: Category[], id: string | null) =>

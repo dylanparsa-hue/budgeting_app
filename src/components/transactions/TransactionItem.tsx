@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Transaction } from '../../types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Typography } from '../../theme/typography';
 import { BorderRadius, Spacing } from '../../theme/spacing';
 import { formatCurrency } from '../../utils/currency';
 import { format, isToday, isYesterday } from 'date-fns';
+import { CATEGORY_ICON, Trash2 } from '../../lib/icons';
+import type { LucideIcon } from 'lucide-react-native';
+import { Package } from 'lucide-react-native';
 
 interface TransactionItemProps {
   transaction:  Transaction;
@@ -26,15 +29,16 @@ export function TransactionItem({ transaction, currency = 'MYR', onPress, onDele
   const { category, type, amount, note, date } = transaction;
   const isIncome = type === 'income';
 
+  const IconComp: LucideIcon =
+    CATEGORY_ICON[category?.icon?.toLowerCase() ?? ''] ??
+    CATEGORY_ICON[category?.name?.toLowerCase() ?? ''] ??
+    Package;
+
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.75}
-        style={styles.row}
-      >
+      <TouchableOpacity onPress={onPress} activeOpacity={0.75} style={styles.row}>
         <View style={[styles.iconBubble, { backgroundColor: (category?.color ?? C.textTertiary) + '20' }]}>
-          <Text style={styles.icon}>{category?.icon ?? '📦'}</Text>
+          <IconComp size={20} color={category?.color ?? C.textTertiary} strokeWidth={2} />
         </View>
         <View style={styles.details}>
           <Text style={[styles.catName, { color: C.textPrimary }]} numberOfLines={1}>
@@ -60,7 +64,7 @@ export function TransactionItem({ transaction, currency = 'MYR', onPress, onDele
           style={[styles.deleteBtn, { backgroundColor: C.dangerLight }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.deleteIcon}>🗑️</Text>
+          <Trash2 size={15} color={C.danger} strokeWidth={2} />
         </TouchableOpacity>
       )}
     </View>
@@ -68,27 +72,14 @@ export function TransactionItem({ transaction, currency = 'MYR', onPress, onDele
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing[2],
-  },
-  row: {
-    flex: 1, flexDirection: 'row', alignItems: 'center',
-    paddingVertical: Spacing[2.5], gap: Spacing[3],
-  },
-  iconBubble: {
-    width: 44, height: 44, borderRadius: BorderRadius.lg,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  icon:    { fontSize: 22 },
-  details: { flex: 1, gap: Spacing[0.5] },
-  catName: { ...Typography.titleSmall },
-  note:    { ...Typography.bodySmall },
-  dateText:{ ...Typography.caption },
-  right:   { alignItems: 'flex-end', gap: Spacing[0.5] },
-  amount:  { ...Typography.titleSmall, fontVariant: ['tabular-nums'] as any },
-  deleteBtn: {
-    width: 34, height: 34, borderRadius: BorderRadius.md,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  deleteIcon: { fontSize: 15 },
+  wrapper:   { flexDirection: 'row', alignItems: 'center', gap: Spacing[2] },
+  row:       { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing[2.5], gap: Spacing[3] },
+  iconBubble:{ width: 44, height: 44, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
+  details:   { flex: 1, gap: Spacing[0.5] },
+  catName:   { ...Typography.titleSmall },
+  note:      { ...Typography.bodySmall },
+  dateText:  { ...Typography.caption },
+  right:     { alignItems: 'flex-end', gap: Spacing[0.5] },
+  amount:    { ...Typography.titleSmall, fontVariant: ['tabular-nums'] as any },
+  deleteBtn: { width: 34, height: 34, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
 });

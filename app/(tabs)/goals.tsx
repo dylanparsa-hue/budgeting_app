@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, parseISO, isPast } from 'date-fns';
+import { format, differenceInDays, parseISO, isPast } from 'date-fns';
 
 import { useAuthStore }        from '../../src/stores/authStore';
 import { useGoalStore }        from '../../src/stores/goalStore';
 import { useTransactionStore } from '../../src/stores/transactionStore';
+import { useBudgetStore }      from '../../src/stores/budgetStore';
 import { useRecurringStore }   from '../../src/stores/recurringStore';
 import { useDebtStore }        from '../../src/stores/debtStore';
 import { Button }              from '../../src/components/ui/Button';
@@ -25,101 +26,26 @@ import { useTheme }            from '../../src/theme/ThemeContext';
 import { Typography, FontFamily, FontSize } from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import { formatCurrency, parseCurrencyInput } from '../../src/utils/currency';
-import { Debt, RecurringExpense } from '../../src/types';
-import { Plus, Target, Sparkles, CreditCard, Pencil, Trash2 } from 'lucide-react-native';
+import { CATEGORY_ICON, BILL_META } from '../../src/lib/icons';
+import { Debt } from '../../src/types';
+import {
+  Plus, Target, CreditCard, Pencil, Trash2,
+  AlertTriangle, AlertOctagon, CheckCircle2, Clock,
+  Banknote, Trophy, Star, Calendar, X, BarChart2, Package,
+} from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 type ModalMode = 'add' | 'withdraw';
-type Tab       = 'Goals' | 'Debts' | 'Financial Plan';
+type Tab       = 'Budget' | 'Goals' | 'Debts';
 
-// ─── Financial Plan helpers (from plan.tsx) ───────────────────────────────────
+const MONTH = new Date().getMonth() + 1;
+const YEAR  = new Date().getFullYear();
 
-const CAT_META: Record<string, { icon: string; color: string }> = {
-  rent:         { icon: '🏠', color: '#6366f1' },
-  utilities:    { icon: '💡', color: '#f59e0b' },
-  subscription: { icon: '📱', color: '#8b5cf6' },
-  debt:         { icon: '💳', color: '#ef4444' },
-  insurance:    { icon: '🛡️', color: '#3b82f6' },
-  transport:    { icon: '🚗', color: '#10b981' },
-  other:        { icon: '📦', color: '#6b7280' },
-};
 
 function toMonthly(amount: number, frequency: string) {
   if (frequency === 'weekly') return amount * 52 / 12;
   if (frequency === 'yearly') return amount / 12;
   return amount;
-}
-
-function buildRecommendations(params: {
-  income: number; fixedTotal: number; variableSpent: number;
-  items: RecurringExpense[]; currency: string;
-}) {
-  const { income, fixedTotal, variableSpent, items, currency } = params;
-  const tips: { icon: string; title: string; body: string; type: 'danger' | 'warning' | 'success' | 'info' }[] = [];
-
-  if (income === 0) {
-    tips.push({ icon: '💡', type: 'info', title: 'Add your income first',
-      body: 'Log an income transaction this month so we can calculate how much you have available.' });
-    return tips;
-  }
-
-  const totalOut   = fixedTotal + variableSpent;
-  const saveable   = income - totalOut;
-  const savingsPct = saveable / income;
-  const savingsTarget = income * 0.20;
-
-  if (fixedTotal > income * 0.50) {
-    tips.push({ icon: '⚠️', type: 'danger', title: 'Fixed expenses too high',
-      body: `Your fixed obligations (${formatCurrency(fixedTotal, currency)}/mo) exceed 50% of income. Try to reduce or renegotiate at least one bill.` });
-  }
-  if (saveable < 0) {
-    tips.push({ icon: '🚨', type: 'danger', title: 'Spending exceeds income',
-      body: `You're spending ${formatCurrency(Math.abs(saveable), currency)} more than you earn. Cut variable expenses immediately.` });
-  } else if (savingsPct < 0.05) {
-    tips.push({ icon: '⚠️', type: 'warning', title: 'Almost nothing left to save',
-      body: `Only ${formatCurrency(saveable, currency)} remains. Aim to save at least ${formatCurrency(savingsTarget, currency)} (20% of income).` });
-  } else if (savingsPct >= 0.20) {
-    tips.push({ icon: '✅', type: 'success', title: 'Great savings rate!',
-      body: `You're saving ${(savingsPct * 100).toFixed(0)}% of your income. Consider putting the surplus into a savings goal.` });
-  }
-
-  const subs = items.filter(i => i.category === 'subscription');
-  const subTotal = subs.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
-  if (subs.length >= 3) {
-    tips.push({ icon: '📱', type: 'warning', title: `${subs.length} active subscriptions`,
-      body: `You're paying ${formatCurrency(subTotal, currency)}/mo on subscriptions. Review which ones you actually use.` });
-  }
-
-  const debts = items.filter(i => i.category === 'debt');
-  const debtTotal = debts.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
-  if (debtTotal / income > 0.30) {
-    tips.push({ icon: '💳', type: 'danger', title: 'High debt-to-income ratio',
-      body: `Debt payments are ${(debtTotal / income * 100).toFixed(0)}% of income. Prioritise paying off the highest-interest debt first.` });
-  }
-
-  if (saveable > 0 && savingsPct < 0.20) {
-    const gap = savingsTarget - saveable;
-    tips.push({ icon: '🎯', type: 'info', title: `Save ${formatCurrency(savingsTarget, currency)}/mo`,
-      body: `To reach the 20% savings rule you need to free up ${formatCurrency(gap, currency)}. Try reducing dining, shopping, or entertainment.` });
-  }
-
-  const varPct = variableSpent / income;
-  if (varPct < 0.20 && income > 0) {
-    tips.push({ icon: '🌟', type: 'success', title: 'Low day-to-day spending',
-      body: `Your variable spending is only ${(varPct * 100).toFixed(0)}% of income — excellent discipline.` });
-  }
-
-  const rent = items.filter(i => i.category === 'rent');
-  const rentTotal = rent.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
-  if (rentTotal / income > 0.35) {
-    tips.push({ icon: '🏠', type: 'warning', title: 'Rent is above 35% of income',
-      body: `Housing costs ${formatCurrency(rentTotal, currency)}/mo (${(rentTotal / income * 100).toFixed(0)}% of income). Consider if a cheaper option is feasible.` });
-  }
-
-  if (tips.length === 0) {
-    tips.push({ icon: '💚', type: 'success', title: 'Budget looks healthy',
-      body: 'Your income covers your expenses well and you have room to save. Keep tracking!' });
-  }
-  return tips;
 }
 
 // ─── Debt helpers ─────────────────────────────────────────────────────────────
@@ -140,12 +66,12 @@ function getDebtUrgency(dueDate: string | null): DebtUrgency {
   }
 }
 
-const URGENCY_META: Record<DebtUrgency, { label: string; bg: string; text: string; icon: string }> = {
-  overdue:  { label: 'Overdue',        bg: '#fecaca', text: '#991b1b', icon: '🚨' },
-  critical: { label: 'Due very soon',  bg: '#fee2e2', text: '#dc2626', icon: '⚠️' },
-  urgent:   { label: 'Due this month', bg: '#fef3c7', text: '#92400e', icon: '⏰' },
-  on_track: { label: 'On track',       bg: '#d1fae5', text: '#065f46', icon: '✅' },
-  no_date:  { label: 'No due date',    bg: '#f3f4f6', text: '#6b7280', icon: '📅' },
+const URGENCY_META: Record<DebtUrgency, { label: string; bg: string; text: string; Icon: LucideIcon }> = {
+  overdue:  { label: 'Overdue',        bg: '#fecaca', text: '#991b1b', Icon: AlertOctagon  },
+  critical: { label: 'Due very soon',  bg: '#fee2e2', text: '#dc2626', Icon: AlertTriangle  },
+  urgent:   { label: 'Due this month', bg: '#fef3c7', text: '#92400e', Icon: Clock          },
+  on_track: { label: 'On track',       bg: '#d1fae5', text: '#065f46', Icon: CheckCircle2   },
+  no_date:  { label: 'No due date',    bg: '#f3f4f6', text: '#6b7280', Icon: Calendar       },
 };
 
 function DebtCard({ debt, currency, C, onEdit, onPay }: {
@@ -174,7 +100,7 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
       {/* Top row: icon + name + urgency pill */}
       <View style={debtStyles.topRow}>
         <View style={[debtStyles.iconBox, { backgroundColor: meta.bg }]}>
-          <Text style={{ fontSize: 20 }}>{meta.icon}</Text>
+          <meta.Icon size={20} color={meta.text} strokeWidth={2} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[debtStyles.debtName, { color: C.textPrimary }]} numberOfLines={1}>{debt.name}</Text>
@@ -224,9 +150,10 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
 
       {/* Due date */}
       {debt.dueDate && !isPaid && (
-        <View style={[debtStyles.dueDateRow, { backgroundColor: meta.bg + '80' }]}>
+        <View style={[debtStyles.dueDateRow, { backgroundColor: meta.bg + '80', flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+          <Calendar size={12} color={meta.text} strokeWidth={2} />
           <Text style={[debtStyles.dueDateText, { color: meta.text }]}>
-            📅 Due {format(parseISO(debt.dueDate), 'dd MMM yyyy')}
+            Due {format(parseISO(debt.dueDate), 'dd MMM yyyy')}
           </Text>
         </View>
       )}
@@ -239,7 +166,8 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
         </TouchableOpacity>
         {!isPaid && (
           <TouchableOpacity onPress={onPay} style={[debtStyles.actionBtn, { backgroundColor: '#0E2417', flex: 1.5 }]}>
-            <Text style={[debtStyles.actionBtnText, { color: '#9FE870' }]}>💰  Make Payment</Text>
+            <Banknote size={13} color="#9FE870" strokeWidth={2} />
+            <Text style={[debtStyles.actionBtnText, { color: '#9FE870' }]}>Make Payment</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -262,7 +190,11 @@ function GoalCard({
       <View style={styles.goalTopRow}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', flex: 1 }}>
           <View style={[styles.goalIconBox, { backgroundColor: C.surfaceRaised }]}>
-            <Text style={{ fontSize: 22 }}>{goal.icon ?? '🎯'}</Text>
+            {(() => {
+              const { GOAL_ICON: GI } = require('../../src/lib/icons');
+              const GoalIc: LucideIcon = GI[goal.icon ?? ''] ?? Target;
+              return <GoalIc size={22} color={C.primary} strokeWidth={2} />;
+            })()}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{goal.name}</Text>
@@ -305,10 +237,11 @@ export default function GoalsScreen() {
   const { user, profile }                               = useAuthStore();
   const { goals, loadGoals, depositToGoal, updateGoal } = useGoalStore();
   const { addTransaction, categories, transactions }    = useTransactionStore();
+  const { budgets, loadBudgets, removeBudget }          = useBudgetStore();
   const { items: recurringItems, load: loadRecurring, remove: removeRecurring } = useRecurringStore();
   const { debts, load: loadDebts }                      = useDebtStore();
 
-  const [activeTab,   setActiveTab]   = useState<Tab>('Goals');
+  const [activeTab,   setActiveTab]   = useState<Tab>('Budget');
   const [refreshing,  setRefreshing]  = useState(false);
   const [modalGoalId, setModalGoalId] = useState<string | null>(null);
   const [modalMode,   setModalMode]   = useState<ModalMode>('add');
@@ -328,45 +261,13 @@ export default function GoalsScreen() {
   const payDebt_  = debts.find(d => d.id === payDebtId);
 
   useEffect(() => {
-    if (user) loadGoals(user.id);
+    if (user) {
+      loadGoals(user.id);
+      loadBudgets(user.id, MONTH, YEAR);
+    }
     loadRecurring();
     loadDebts();
   }, [user?.id]);
-
-  // ── Financial Plan calculations ───────────────────────────────────────────
-  const now        = useMemo(() => new Date(), []);
-  const monthStart = useMemo(() => startOfMonth(now), [now]);
-  const monthEnd   = useMemo(() => endOfMonth(now), [now]);
-
-  const monthIncome = useMemo(() =>
-    transactions
-      .filter(t => t.type === 'income' && isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }))
-      .reduce((s, t) => s + t.amount, 0),
-  [transactions, monthStart, monthEnd]);
-
-  const monthExpenses = useMemo(() =>
-    transactions
-      .filter(t => t.type === 'expense' && isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }))
-      .reduce((s, t) => s + t.amount, 0),
-  [transactions, monthStart, monthEnd]);
-
-  const fixedMonthly = useMemo(() =>
-    recurringItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0),
-  [recurringItems]);
-
-  const saveable = monthIncome - fixedMonthly - monthExpenses;
-
-  const planTips = useMemo(() => buildRecommendations({
-    income: monthIncome, fixedTotal: fixedMonthly,
-    variableSpent: monthExpenses, items: recurringItems, currency,
-  }), [monthIncome, fixedMonthly, monthExpenses, recurringItems, currency]);
-
-  const tipColors = {
-    danger:  { bg: C.dangerLight,  text: C.danger  },
-    warning: { bg: '#fef3c7',      text: '#92400e' },
-    success: { bg: '#d1fae5',      text: '#065f46' },
-    info:    { bg: C.primaryLight, text: C.primary  },
-  };
 
   // ── Goals helpers ─────────────────────────────────────────────────────────
   const onRefresh = async () => {
@@ -389,6 +290,13 @@ export default function GoalsScreen() {
     setIsSaving(true); setAmountError('');
     try {
       if (modalMode === 'add') {
+        // ── Balance protection ───────────────────────────────────────────────
+        if (currentBalance < parsed) {
+          setAmountError(
+            `Insufficient available balance. You have ${formatCurrency(Math.max(currentBalance, 0), currency)} available.`
+          );
+          return;
+        }
         const canAdd = modalGoal.target_amount - modalGoal.current_amount;
         if (parsed > canAdd) { setAmountError(`Max you can add is ${formatCurrency(canAdd, currency)}`); return; }
         await depositToGoal(modalGoalId, parsed);
@@ -427,6 +335,26 @@ export default function GoalsScreen() {
   const totalTarget    = goals.reduce((s, g) => s + g.target_amount, 0);
   const overallPct     = totalTarget > 0 ? Math.min((totalSaved / totalTarget) * 100, 100) : 0;
 
+  // All-time balance (income − expenses across all transactions)
+  const currentBalance = useMemo(() => {
+    let bal = 0;
+    for (const t of transactions) {
+      if (t.type === 'income') bal += t.amount;
+      else bal -= t.amount;
+    }
+    return bal;
+  }, [transactions]);
+
+  const budgetsWithSpend = useMemo(() => budgets.map(b => ({
+    ...b,
+    spent: transactions
+      .filter(t =>
+        t.type === 'expense' && t.category_id === b.category_id &&
+        new Date(t.date).getMonth() + 1 === MONTH && new Date(t.date).getFullYear() === YEAR,
+      )
+      .reduce((s, t) => s + t.amount, 0),
+  })), [budgets, transactions]);
+
   // Debt helpers
   const urgencyOrder: Record<DebtUrgency, number> = { overdue: 0, critical: 1, urgent: 2, on_track: 3, no_date: 4 };
   const sortedDebts = useMemo(() =>
@@ -436,19 +364,48 @@ export default function GoalsScreen() {
       return urgencyOrder[ua] - urgencyOrder[ub];
     }),
   [debts]);
-  const activeDebts    = sortedDebts.filter(d => d.amountPaid < d.totalAmount);
-  const paidOffDebts   = sortedDebts.filter(d => d.amountPaid >= d.totalAmount);
-  const totalDebt      = debts.reduce((s, d) => s + Math.max(d.totalAmount - d.amountPaid, 0), 0);
+  const activeDebts  = sortedDebts.filter(d => d.amountPaid < d.totalAmount);
+  const paidOffDebts = sortedDebts.filter(d => d.amountPaid >= d.totalAmount);
+  const totalDebt    = debts.reduce((s, d) => s + Math.max(d.totalAmount - d.amountPaid, 0), 0);
 
   const handlePayDebt = async () => {
-    if (!payDebtId || !payDebt_) return;
+    if (!payDebtId || !payDebt_ || !user) return;
     const parsed = parseCurrencyInput(payAmountStr);
     if (parsed <= 0) { setPayAmountErr('Please enter a valid amount.'); return; }
     const maxPay = payDebt_.totalAmount - payDebt_.amountPaid;
     if (parsed > maxPay) { setPayAmountErr(`Max payment is ${formatCurrency(maxPay, currency)}`); return; }
+
+    // Balance check — payment must come from real money
+    if (currentBalance < parsed) {
+      setPayAmountErr(
+        `Not enough balance. You have ${formatCurrency(Math.max(currentBalance, 0), currency)} available.\nAdd income first to cover this payment.`
+      );
+      return;
+    }
+
     setIsPaySaving(true); setPayAmountErr('');
     try {
+      // 1. Deduct from balance — create an expense transaction
+      const debtCat =
+        categories.find(c => /debt|loan|finance|credit/i.test(c.name) && (c.type === 'expense' || c.type === 'both')) ??
+        categories.find(c => c.type === 'expense' || c.type === 'both') ??
+        categories[0];
+      await addTransaction(user.id, {
+        type:           'expense',
+        amount:         parsed,
+        date:           format(new Date(), 'yyyy-MM-dd'),
+        category_id:    debtCat?.id ?? null,
+        note:           `Debt payment: ${payDebt_.name} → ${payDebt_.lender}`,
+        payment_method: 'transfer',
+        tags:           ['debt', 'payment'],
+        is_recurring:   false,
+        group_id:       null,
+        user_id:        user.id,
+      });
+
+      // 2. Update the debt record
       await payDebt(payDebtId, parsed);
+
       setPayDebtId(null); setPayAmountStr(''); setPayAmountErr('');
     } catch (err: any) {
       setPayAmountErr(err?.message ?? 'Something went wrong.');
@@ -463,9 +420,17 @@ export default function GoalsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>Goals</Text>
-          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Savings, debts & financial plan.</Text>
+          <Text style={[styles.title, { color: C.textPrimary }]}>Finances</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Budgets, savings & debts.</Text>
         </View>
+        {activeTab === 'Budget' && (
+          <TouchableOpacity onPress={() => router.push('/modals/add-budget')} style={[styles.addBtn, { borderColor: C.border }]}>
+            <View style={styles.addBtnInner}>
+              <Plus size={14} color={C.textPrimary} strokeWidth={2.5} />
+              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>Budget</Text>
+            </View>
+          </TouchableOpacity>
+        )}
         {activeTab === 'Goals' && (
           <TouchableOpacity onPress={() => router.push('/modals/add-goal')} style={[styles.addBtn, { borderColor: C.border }]}>
             <View style={styles.addBtnInner}>
@@ -482,19 +447,11 @@ export default function GoalsScreen() {
             </View>
           </TouchableOpacity>
         )}
-        {activeTab === 'Financial Plan' && (
-          <TouchableOpacity onPress={() => router.push('/modals/add-recurring')} style={[styles.addBtn, { borderColor: C.border }]}>
-            <View style={styles.addBtnInner}>
-              <Plus size={14} color={C.textPrimary} strokeWidth={2.5} />
-              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>Bill</Text>
-            </View>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: C.surfaceRaised }]}>
-        {(['Goals', 'Debts', 'Financial Plan'] as Tab[]).map(tab => (
+        {(['Budget', 'Goals', 'Debts'] as Tab[]).map(tab => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
@@ -503,11 +460,11 @@ export default function GoalsScreen() {
               activeTab === tab && [styles.tabBtnActive, { backgroundColor: C.surface }, Shadow.sm],
             ]}
           >
+            {tab === 'Budget' && (
+              <BarChart2 size={11} color={activeTab === tab ? C.primary : C.textTertiary} strokeWidth={2} />
+            )}
             {tab === 'Debts' && (
               <CreditCard size={11} color={activeTab === tab ? C.danger : C.textTertiary} strokeWidth={2} />
-            )}
-            {tab === 'Financial Plan' && (
-              <Sparkles size={11} color={activeTab === tab ? C.primary : C.textTertiary} strokeWidth={2} />
             )}
             <Text style={[
               styles.tabLabel,
@@ -525,7 +482,167 @@ export default function GoalsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
-        {activeTab === 'Goals' ? (
+        {activeTab === 'Budget' && (
+          /* ══════════ BUDGET TAB ══════════ */
+          <>
+            {/* Personal budgets */}
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>My Budgets</Text>
+              <TouchableOpacity onPress={() => router.push('/modals/add-budget')}>
+                <Text style={[styles.sectionSub, { color: C.primary }]}>+ Add</Text>
+              </TouchableOpacity>
+            </View>
+            {budgetsWithSpend.length > 0 ? (
+              <View style={[styles.listCard, { backgroundColor: C.surface }, Shadow.sm]}>
+                {budgetsWithSpend.map((b, i) => {
+                  const pct      = b.amount > 0 ? Math.min((b.spent ?? 0) / b.amount * 100, 100) : 0;
+                  const barColor = pct > 90 ? C.danger : pct > 70 ? '#F59E0B' : C.success;
+                  const cat      = categories.find((c: any) => c.id === b.category_id);
+                  const IconComp = cat ? (CATEGORY_ICON[cat.name?.toLowerCase()] ?? Package) : Package;
+                  const catColor = cat?.color ?? C.primary;
+                  const remaining = b.amount - (b.spent ?? 0);
+                  return (
+                    <View
+                      key={b.id ?? i}
+                      style={[
+                        styles.budgetRow,
+                        i < budgetsWithSpend.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.divider },
+                      ]}
+                    >
+                      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: catColor + '20', alignItems: 'center', justifyContent: 'center' }}>
+                        <IconComp size={20} color={catColor} strokeWidth={2.25} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{cat?.name ?? 'Budget'}</Text>
+                          <Text style={{ ...Typography.bodySmall, color: pct > 90 ? C.danger : C.textSecondary }}>
+                            {formatCurrency(b.spent ?? 0, currency, { compact: true })} / {formatCurrency(b.amount, currency, { compact: true })}
+                          </Text>
+                        </View>
+                        <ProgressBar progress={pct} color={barColor} height={6} animated />
+                        <Text style={{ ...Typography.caption, color: remaining >= 0 ? C.success : C.danger, marginTop: 3 }}>
+                          {remaining >= 0
+                            ? `${formatCurrency(remaining, currency, { compact: true })} left`
+                            : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} over budget`}
+                        </Text>
+                      </View>
+                      <View style={styles.budgetActions}>
+                        <TouchableOpacity
+                          onPress={() => router.push(`/modals/add-budget?id=${b.id}` as any)}
+                          style={[styles.budgetActionBtn, { backgroundColor: C.primaryLight }]}
+                        >
+                          <Pencil size={13} color={C.primary} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => b.id && removeBudget(b.id)}
+                          style={[styles.budgetActionBtn, { backgroundColor: C.dangerLight }]}
+                        >
+                          <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push('/modals/add-budget')}
+                style={[styles.emptyGoal, { backgroundColor: C.surface, borderColor: C.border }]}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>No budgets yet</Text>
+                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>Set spending limits by category</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Fixed Obligations */}
+            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Fixed Obligations</Text>
+              <TouchableOpacity onPress={() => router.push('/modals/add-recurring')}>
+                <Text style={[styles.sectionSub, { color: C.primary }]}>+ Add</Text>
+              </TouchableOpacity>
+            </View>
+            {recurringItems.length === 0 ? (
+              <TouchableOpacity
+                onPress={() => router.push('/modals/add-recurring')}
+                style={[styles.emptyGoal, { backgroundColor: C.surface, borderColor: C.border }]}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>No fixed bills yet</Text>
+                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>Add rent, subscriptions, debt repayments</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <View style={[styles.obligationSummaryCard, { backgroundColor: C.surface }, Shadow.sm]}>
+                  <View style={[styles.obligationSummaryLeft, { backgroundColor: C.dangerLight }]}>
+                    <Text style={[styles.obligationTotalLabel, { color: C.textTertiary }]}>TOTAL / MONTH</Text>
+                    <Text style={[styles.obligationTotalAmt, { color: C.danger }]}>
+                      {formatCurrency(recurringItems.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0), currency)}
+                    </Text>
+                  </View>
+                  <View style={styles.obligationSummaryRight}>
+                    <Text style={[styles.obligationCountBig, { color: C.textPrimary }]}>{recurringItems.length}</Text>
+                    <Text style={[styles.obligationCountLabel, { color: C.textTertiary }]}>
+                      {recurringItems.length === 1 ? 'obligation' : 'obligations'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.listCard, { backgroundColor: C.surface }, Shadow.sm]}>
+                  {recurringItems.map((item, i) => {
+                    const meta    = BILL_META[item.category] ?? BILL_META.other;
+                    const BillIcon = meta.Icon;
+                    const monthly = toMonthly(item.amount, item.frequency);
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.obligationRow,
+                          i < recurringItems.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.divider },
+                        ]}
+                      >
+                        <View style={[styles.catIconBox, { backgroundColor: meta.color + '20' }]}>
+                          <BillIcon size={18} color={meta.color} strokeWidth={2} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{item.name}</Text>
+                          <Text style={{ ...Typography.caption, color: C.textTertiary, marginTop: 2 }}>
+                            {item.frequency === 'monthly' ? 'Monthly' : item.frequency === 'weekly' ? 'Weekly' : 'Yearly'}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ ...Typography.labelLarge, color: C.textPrimary }}>
+                            {formatCurrency(item.amount, currency)}
+                          </Text>
+                          {item.frequency !== 'monthly' && (
+                            <Text style={{ ...Typography.caption, color: C.textTertiary }}>
+                              {formatCurrency(monthly, currency)}/mo
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.obligationActions}>
+                          <TouchableOpacity
+                            onPress={() => router.push(`/modals/add-recurring?id=${item.id}` as any)}
+                            style={[styles.budgetActionBtn, { backgroundColor: C.primaryLight }]}
+                          >
+                            <Pencil size={13} color={C.primary} strokeWidth={2.5} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => removeRecurring(item.id)}
+                            style={[styles.budgetActionBtn, { backgroundColor: C.dangerLight }]}
+                          >
+                            <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </>
+        )}
+
+        {activeTab === 'Goals' && (
           /* ══════════ GOALS TAB ══════════ */
           <>
             {/* Summary banner */}
@@ -553,7 +670,10 @@ export default function GoalsScreen() {
               activeOpacity={0.85}
             >
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.plannerTitle}>🎯 Smart Savings Planner</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Target size={14} color="#0E2417" strokeWidth={2.5} />
+                  <Text style={styles.plannerTitle}>Smart Savings Planner</Text>
+                </View>
                 <Text style={styles.plannerSub}>See how much to save per goal each month</Text>
               </View>
               <View style={[styles.plannerArrow, { backgroundColor: 'rgba(255,255,255,0.20)' }]}>
@@ -580,7 +700,10 @@ export default function GoalsScreen() {
             {completedGoals.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>🏆 Completed</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Trophy size={16} color={C.textPrimary} strokeWidth={2} />
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Completed</Text>
+                </View>
                 </View>
                 <View style={styles.goalsList}>
                   {completedGoals.map(goal => (
@@ -593,7 +716,7 @@ export default function GoalsScreen() {
 
             {goals.length === 0 && (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>⭐</Text>
+                <Star size={44} color={C.textTertiary} strokeWidth={1.5} />
                 <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No goals yet</Text>
                 <Text style={[styles.emptyText, { color: C.textTertiary }]}>
                   Set a savings goal — vacation, emergency fund, or anything you dream of
@@ -607,7 +730,9 @@ export default function GoalsScreen() {
               </View>
             )}
           </>
-        ) : activeTab === 'Debts' ? (
+        )}
+
+        {activeTab === 'Debts' && (
           /* ══════════ DEBTS TAB ══════════ */
           <View style={styles.planContent}>
 
@@ -619,7 +744,7 @@ export default function GoalsScreen() {
                     TOTAL OWED
                   </Text>
                   <Text style={[debtStyles.summaryAmount, { color: totalDebt > 0 ? C.danger : '#10b981' }]}>
-                    {totalDebt > 0 ? formatCurrency(totalDebt, currency) : 'All clear! 🎉'}
+                    {totalDebt > 0 ? formatCurrency(totalDebt, currency) : 'All clear!'}
                   </Text>
                 </View>
                 <View style={debtStyles.summaryRight}>
@@ -640,7 +765,7 @@ export default function GoalsScreen() {
                     const m = URGENCY_META[u];
                     return (
                       <View key={u} style={[debtStyles.legendPill, { backgroundColor: m.bg }]}>
-                        <Text style={{ fontSize: 10 }}>{m.icon}</Text>
+                        <m.Icon size={10} color={m.text} strokeWidth={2.5} />
                         <Text style={[debtStyles.legendPillText, { color: m.text }]}>{m.label.split(' ')[0]}</Text>
                       </View>
                     );
@@ -671,7 +796,10 @@ export default function GoalsScreen() {
             {paidOffDebts.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>🏆 Paid off</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Trophy size={16} color={C.textPrimary} strokeWidth={2} />
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Paid off</Text>
+                </View>
                 </View>
                 <View style={{ gap: 12 }}>
                   {paidOffDebts.map(debt => (
@@ -687,7 +815,7 @@ export default function GoalsScreen() {
 
             {debts.length === 0 && (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>💳</Text>
+                <CreditCard size={44} color={C.textTertiary} strokeWidth={1.5} />
                 <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No debts tracked</Text>
                 <Text style={[styles.emptyText, { color: C.textTertiary }]}>
                   Track loans, credit cards or money you owe anyone — with due dates and time priority
@@ -702,135 +830,6 @@ export default function GoalsScreen() {
             )}
           </View>
 
-        ) : (
-          /* ══════════ FINANCIAL PLAN TAB ══════════ */
-          <View style={styles.planContent}>
-
-            {/* Overview card */}
-            <View style={[styles.overviewCard, Shadow.md, { backgroundColor: C.surface }]}>
-              <PlanRow label="Monthly income"    value={formatCurrency(monthIncome, currency)}    color={C.success}  C={C} />
-              <View style={[styles.planDivider, { backgroundColor: C.border }]} />
-              <PlanRow label="Fixed obligations" value={`− ${formatCurrency(fixedMonthly, currency)}`} color={C.danger}   C={C} />
-              <View style={[styles.planDivider, { backgroundColor: C.border }]} />
-              <PlanRow label="Variable spending" value={`− ${formatCurrency(monthExpenses, currency)}`} color={C.textSecondary} C={C} />
-              <View style={[styles.planDivider, { backgroundColor: C.border }]} />
-              <PlanRow label="Left to save" bold
-                value={formatCurrency(Math.max(saveable, 0), currency)}
-                color={saveable >= 0 ? C.primary : C.danger} C={C} />
-            </View>
-
-            {/* Income allocation bar */}
-            {monthIncome > 0 && (
-              <View style={[styles.barCard, Shadow.sm, { backgroundColor: C.surface }]}>
-                <Text style={[styles.barLabel, { color: C.textSecondary }]}>Income allocation</Text>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barSeg, { flex: Math.min(fixedMonthly / monthIncome, 1),        backgroundColor: '#ef4444' }]} />
-                  <View style={[styles.barSeg, { flex: Math.min(monthExpenses / monthIncome, Math.max(1 - fixedMonthly / monthIncome, 0)), backgroundColor: '#f59e0b' }]} />
-                  <View style={[styles.barSeg, { flex: Math.max(1 - fixedMonthly / monthIncome - monthExpenses / monthIncome, 0), backgroundColor: '#10b981' }]} />
-                </View>
-                <View style={styles.barLegend}>
-                  {[['#ef4444','Fixed'],['#f59e0b','Variable'],['#10b981','Remaining']].map(([color, label]) => (
-                    <View key={label} style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: color }]} />
-                      <Text style={{ fontSize: 11, color: C.textTertiary }}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Fixed obligations */}
-            <View style={styles.planSection}>
-              <View style={styles.planSectionHeader}>
-                <Text style={[styles.planSectionTitle, { color: C.textPrimary }]}>Fixed Obligations</Text>
-                <TouchableOpacity onPress={() => router.push('/modals/add-recurring')}>
-                  <Text style={[styles.planSectionAction, { color: C.primary }]}>+ Add</Text>
-                </TouchableOpacity>
-              </View>
-
-              {recurringItems.length === 0 ? (
-                <TouchableOpacity
-                  onPress={() => router.push('/modals/add-recurring')}
-                  style={[styles.planEmpty, { backgroundColor: C.surface, borderColor: C.border }]}
-                >
-                  <Text style={styles.planEmptyIcon}>📋</Text>
-                  <Text style={[styles.planEmptyTitle, { color: C.textSecondary }]}>No fixed expenses yet</Text>
-                  <Text style={[styles.planEmptyText, { color: C.textTertiary }]}>
-                    Add rent, bills, subscriptions and debts to see your true disposable income
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.recurringList}>
-                  {recurringItems.map(item => {
-                    const meta    = CAT_META[item.category] ?? CAT_META.other;
-                    const monthly = toMonthly(item.amount, item.frequency);
-                    return (
-                      <View key={item.id} style={[styles.recurringCard, Shadow.sm, { backgroundColor: C.surface }]}>
-                        <View style={[styles.recurringIcon, { backgroundColor: meta.color + '20' }]}>
-                          <Text style={styles.recurringEmoji}>{meta.icon}</Text>
-                        </View>
-                        <View style={styles.recurringInfo}>
-                          <Text style={[styles.recurringName, { color: C.textPrimary }]}>{item.name}</Text>
-                          <Text style={[styles.recurringFreq, { color: C.textTertiary }]}>
-                            {item.frequency === 'monthly' ? 'Monthly' : item.frequency === 'weekly' ? 'Weekly' : 'Yearly'}
-                          </Text>
-                        </View>
-                        <View style={styles.recurringRight}>
-                          <Text style={[styles.recurringAmt, { color: C.textPrimary }]}>
-                            {formatCurrency(item.amount, currency)}
-                          </Text>
-                          {item.frequency !== 'monthly' && (
-                            <Text style={[styles.recurringMonthly, { color: C.textTertiary }]}>
-                              {formatCurrency(monthly, currency)}/mo
-                            </Text>
-                          )}
-                        </View>
-                        <View style={styles.recurringActions}>
-                          <TouchableOpacity
-                            onPress={() => router.push(`/modals/add-recurring?id=${item.id}`)}
-                            style={[styles.actionBtn, { backgroundColor: C.primaryLight }]}
-                          >
-                            <Pencil size={13} color={C.primary} strokeWidth={2.5} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => removeRecurring(item.id)}
-                            style={[styles.actionBtn, { backgroundColor: C.dangerLight }]}
-                          >
-                            <Trash2 size={13} color={C.danger} strokeWidth={2.5} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
-                  <TouchableOpacity
-                    onPress={() => router.push('/modals/add-recurring')}
-                    style={[styles.addMoreBtn, { borderColor: C.border }]}
-                  >
-                    <Text style={[styles.addMoreText, { color: C.primary }]}>+ Add another</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* Smart recommendations */}
-            <View style={styles.planSection}>
-              <Text style={[styles.planSectionTitle, { color: C.textPrimary }]}>Smart Recommendations</Text>
-              <View style={styles.tipList}>
-                {planTips.map((tip, i) => {
-                  const colors = tipColors[tip.type];
-                  return (
-                    <View key={i} style={[styles.tipCard, { backgroundColor: colors.bg }]}>
-                      <Text style={styles.tipIcon}>{tip.icon}</Text>
-                      <View style={styles.tipBody}>
-                        <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title}</Text>
-                        <Text style={[styles.tipText,  { color: colors.text + 'cc' }]}>{tip.body}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
         )}
       </ScrollView>
 
@@ -840,17 +839,41 @@ export default function GoalsScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setPayDebtId(null)} />
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <TouchableOpacity onPress={() => setPayDebtId(null)} style={[styles.modalCloseBtn, { backgroundColor: C.surfaceRaised }]}>
-              <Text style={[styles.modalCloseBtnText, { color: C.textSecondary }]}>✕</Text>
+              <X size={16} color={C.textSecondary} strokeWidth={2.5} />
             </TouchableOpacity>
 
-            <Text style={[styles.modalSub, { color: C.textPrimary, marginTop: Spacing[2] }]}>💰 Make Payment</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing[2] }}>
+              <Banknote size={18} color={C.textPrimary} strokeWidth={2} />
+              <Text style={[styles.modalSub, { color: C.textPrimary }]}>Make Payment</Text>
+            </View>
             <Text style={[styles.modalHint, { color: C.textSecondary }]}>
-              {payDebt_?.name} · {payDebt_ ? formatCurrency(Math.max(payDebt_.totalAmount - payDebt_.amountPaid, 0), currency) : ''} remaining
+              {payDebt_?.name} → {payDebt_?.lender}
             </Text>
+
+            {/* Balance strip */}
+            <View style={[styles.payBalanceRow, {
+              backgroundColor: currentBalance > 0 ? C.primaryLight : C.dangerLight,
+            }]}>
+              <Text style={[styles.payBalanceLabel, { color: C.textSecondary }]}>Available balance</Text>
+              <Text style={[styles.payBalanceAmt, {
+                color: currentBalance > 0 ? C.primary : C.danger,
+              }]}>
+                {formatCurrency(Math.max(currentBalance, 0), currency)}
+              </Text>
+            </View>
 
             {payAmountErr ? (
               <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
                 <Text style={[styles.errorText, { color: C.danger }]}>{payAmountErr}</Text>
+                {/* Top-up shortcut when balance is insufficient */}
+                {currentBalance < parseCurrencyInput(payAmountStr) && (
+                  <TouchableOpacity
+                    onPress={() => { setPayDebtId(null); router.push('/modals/add-transaction'); }}
+                    style={[styles.topUpBtn, { backgroundColor: C.danger }]}
+                  >
+                    <Text style={styles.topUpBtnText}>+ Add Income / Top Up</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : null}
 
@@ -866,10 +889,13 @@ export default function GoalsScreen() {
                 autoFocus returnKeyType="done" onSubmitEditing={handlePayDebt}
               />
             </View>
+            <Text style={[styles.payHint, { color: C.textTertiary }]}>
+              {payDebt_ ? formatCurrency(Math.max(payDebt_.totalAmount - payDebt_.amountPaid, 0), currency) : ''} remaining on this debt
+            </Text>
 
             <View style={styles.modalActions}>
               <Button label="Cancel" variant="ghost" onPress={() => setPayDebtId(null)} style={{ flex: 1 }} disabled={isPaySaving} />
-              <Button label={isPaySaving ? 'Saving…' : 'Record Payment'} onPress={handlePayDebt} loading={isPaySaving} style={{ flex: 1.5 }} />
+              <Button label={isPaySaving ? 'Processing…' : 'Pay Now'} onPress={handlePayDebt} loading={isPaySaving} style={{ flex: 1.5 }} />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -881,7 +907,7 @@ export default function GoalsScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <TouchableOpacity onPress={closeModal} style={[styles.modalCloseBtn, { backgroundColor: C.surfaceRaised }]}>
-              <Text style={[styles.modalCloseBtnText, { color: C.textSecondary }]}>✕</Text>
+              <X size={16} color={C.textSecondary} strokeWidth={2.5} />
             </TouchableOpacity>
 
             <View style={[styles.modeToggle, { backgroundColor: C.surfaceRaised }]}>
@@ -902,7 +928,7 @@ export default function GoalsScreen() {
             </View>
 
             <Text style={[styles.modalSub, { color: C.textSecondary }]}>
-              {modalGoal?.icon} {modalGoal?.name}
+              {modalGoal?.name}
             </Text>
             <Text style={[styles.modalHint, { color: C.textTertiary }]}>
               {modalMode === 'add'
@@ -996,17 +1022,6 @@ const debtStyles = StyleSheet.create({
   legendPillText: { fontSize: 10, fontWeight: '700' },
 });
 
-// ─── Financial Plan helper components ────────────────────────────────────────
-
-function PlanRow({ label, value, color, C, bold }: { label: string; value: string; color: string; C: any; bold?: boolean }) {
-  return (
-    <View style={styles.planRow}>
-      <Text style={[styles.planRowLabel, { color: C.textSecondary }]}>{label}</Text>
-      <Text style={[styles.planRowValue, { color }, bold && { fontSize: 18, fontWeight: '700' }]}>{value}</Text>
-    </View>
-  );
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -1050,7 +1065,10 @@ const styles = StyleSheet.create({
   plannerArrow:     { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   plannerArrowText: { fontSize: 17, color: '#fff', fontWeight: '700' },
 
-  sectionHeader: { paddingHorizontal: 24, marginTop: 24, marginBottom: 12 },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 24, marginTop: 24, marginBottom: 12,
+  },
   sectionTitle:  { fontFamily: FontFamily.display, fontSize: 18, fontWeight: '700' },
 
   goalsList: { gap: 12, marginHorizontal: 16 },
@@ -1064,7 +1082,7 @@ const styles = StyleSheet.create({
   goalFooterText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: '#8A9A92' },
 
   empty: { alignItems: 'center', paddingVertical: Spacing[14], gap: Spacing[3] },
-  emptyIcon:    { fontSize: 44 },
+  emptyIcon:    { fontSize: 44 }, // kept for any remaining emoji fallbacks
   emptyTitle:   { ...Typography.titleSmall },
   emptyText:    { ...Typography.bodySmall, textAlign: 'center', paddingHorizontal: Spacing[8] },
   createBtn:    { paddingHorizontal: Spacing[6], paddingVertical: Spacing[3], borderRadius: BorderRadius.full, marginTop: Spacing[2] },
@@ -1083,9 +1101,9 @@ const styles = StyleSheet.create({
   barLabel:  { ...Typography.caption },
   barTrack:  { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2 },
   barSeg:    { borderRadius: 5 },
-  barLegend: { flexDirection: 'row', gap: Spacing[4] },
-  legendItem:{ flexDirection: 'row', alignItems: 'center', gap: Spacing[1.5] },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  barLegend: { flexDirection: 'row', gap: Spacing[3] },
+  legendItem:{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing[1.5] },
+  legendDot: { width: 8, height: 8, borderRadius: 4, marginTop: 3 },
 
   planSection:       { gap: 12 },
   planSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -1095,7 +1113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: Spacing[2], padding: Spacing[6],
     borderRadius: BorderRadius.xl, borderWidth: 1, borderStyle: 'dashed',
   },
-  planEmptyIcon:  { fontSize: 36 },
+  planEmptyIcon:  { fontSize: 36 }, // kept as fallback
   planEmptyTitle: { ...Typography.titleSmall },
   planEmptyText:  { ...Typography.bodySmall, textAlign: 'center' },
 
@@ -1105,7 +1123,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl, padding: Spacing[3.5],
   },
   recurringIcon:    { width: 40, height: 40, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  recurringEmoji:   { fontSize: 20 },
+  recurringEmoji:   { fontSize: 20 }, // kept as fallback
   recurringInfo:    { flex: 1, gap: Spacing[0.5] },
   recurringName:    { ...Typography.labelLarge },
   recurringFreq:    { ...Typography.caption },
@@ -1126,7 +1144,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: Spacing[3], alignItems: 'flex-start',
     borderRadius: BorderRadius.xl, padding: Spacing[4],
   },
-  tipIcon:  { fontSize: 22, marginTop: 1 },
+  tipIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   tipBody:  { flex: 1, gap: Spacing[1] },
   tipTitle: { ...Typography.labelLarge },
   tipText:  { ...Typography.bodySmall, lineHeight: 20 },
@@ -1155,4 +1173,71 @@ const styles = StyleSheet.create({
   depositSymbol:   { ...Typography.headingSmall },
   depositInput:    { fontSize: 40, fontWeight: '700', minWidth: 120, textAlign: 'center' },
   modalActions:    { flexDirection: 'row', gap: Spacing[3], marginTop: Spacing[2] },
+
+  // Debt payment modal extras
+  payBalanceRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderRadius: BorderRadius.lg, paddingHorizontal: Spacing[4], paddingVertical: Spacing[3],
+  },
+  payBalanceLabel: { ...Typography.bodySmall },
+  payBalanceAmt:   { ...Typography.titleSmall, fontWeight: '700' },
+  payHint:         { ...Typography.caption, textAlign: 'center', marginTop: -Spacing[2] },
+  topUpBtn: {
+    marginTop: Spacing[2], borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing[2.5], alignItems: 'center',
+  },
+  topUpBtnText: { ...Typography.labelLarge, color: '#fff', fontWeight: '700' },
+
+  // Budget tab
+  sectionSub: { fontSize: 15 },
+  listCard:   { marginHorizontal: 16, borderRadius: 20, overflow: 'hidden' },
+  budgetRow: {
+    flexDirection: 'row', alignItems: 'center', padding: 14,
+  },
+  budgetActions: {
+    flexDirection: 'row', gap: 6, marginLeft: 8,
+  },
+  budgetActionBtn: {
+    width: 28, height: 28, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  obligationSummaryCard: {
+    marginHorizontal: 16, borderRadius: 16,
+    flexDirection: 'row', overflow: 'hidden', marginBottom: 8,
+  },
+  obligationSummaryLeft: {
+    flex: 1, padding: 16,
+  },
+  obligationSummaryRight: {
+    padding: 16, alignItems: 'center', justifyContent: 'center',
+  },
+  obligationTotalLabel: {
+    fontSize: 10, fontWeight: '700',
+    letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 4,
+  },
+  obligationTotalAmt: {
+    fontSize: 22, fontWeight: '800',
+  },
+  obligationCountBig: {
+    fontSize: 28, fontWeight: '800',
+  },
+  obligationCountLabel: {
+    fontSize: 12, fontWeight: '500',
+  },
+  obligationRow: {
+    flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12,
+  },
+  obligationActions: {
+    flexDirection: 'row', gap: 6, marginLeft: 4,
+  },
+  catIconBox: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptyGoal: {
+    marginHorizontal: 16, borderRadius: 20, padding: 24,
+    alignItems: 'center', borderWidth: 1, borderStyle: 'dashed',
+  },
+  emptyGoalTitle: { fontSize: 15, fontWeight: '600' },
+  emptyGoalSub:   { fontSize: 13, marginTop: 4 },
 });

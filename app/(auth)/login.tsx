@@ -11,6 +11,7 @@ import { Input }  from '../../src/components/ui/Input';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
 import { BorderRadius, Spacing } from '../../src/theme/spacing';
+import { Wallet, AlertTriangle, Eye, EyeOff } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const C = useTheme();
@@ -51,7 +52,9 @@ export default function LoginScreen() {
         >
           <View style={styles.heroCircle1} />
           <View style={styles.heroCircle2} />
-          <Text style={styles.heroEmoji}>💰</Text>
+          <View style={styles.heroIconWrap}>
+            <Wallet size={36} color="#fff" strokeWidth={1.8} />
+          </View>
           <Text style={styles.heroTitle}>Budget</Text>
           <Text style={styles.heroSub}>Your money, simplified</Text>
         </LinearGradient>
@@ -63,7 +66,10 @@ export default function LoginScreen() {
 
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[styles.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -84,7 +90,7 @@ export default function LoginScreen() {
               secureTextEntry={!showPw}
               autoComplete="password"
               placeholder="••••••••"
-              rightIcon={<Text style={styles.togglePw}>{showPw ? '🙈' : '👁️'}</Text>}
+              rightIcon={showPw ? <EyeOff size={18} color={C.textTertiary} strokeWidth={2} /> : <Eye size={18} color={C.textTertiary} strokeWidth={2} />}
               onRightPress={() => setShowPw(v => !v)}
             />
           </View>
@@ -126,7 +132,7 @@ const styles = StyleSheet.create({
     width: 150, height: 150, borderRadius: 75,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  heroEmoji: { fontSize: 52, marginBottom: Spacing[1] },
+  heroIconWrap: { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing[1] },
   heroTitle: { ...Typography.displayMedium, color: '#fff' },
   heroSub:   { ...Typography.bodyMedium, color: 'rgba(255,255,255,0.85)' },
   formCard: {
@@ -141,7 +147,6 @@ const styles = StyleSheet.create({
   errorBox:  { borderRadius: BorderRadius.lg, padding: Spacing[3] },
   errorText: { ...Typography.bodySmall },
   fields:    { gap: Spacing[4] },
-  togglePw:  { fontSize: 18 },
   divider:   { flexDirection: 'row', alignItems: 'center', gap: Spacing[3] },
   line:      { flex: 1, height: 1 },
   dividerText: { ...Typography.caption },

@@ -11,6 +11,8 @@ import { useNotificationStore, DEFAULT_PREFS } from '../../src/stores/notificati
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
+import { BarChart2, Target, Shield, Sparkles, Bell, Info, X, Check } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 export default function NotificationSettingsScreen() {
   const C             = useTheme();
@@ -49,7 +51,7 @@ export default function NotificationSettingsScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: C.divider }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={[styles.backText, { color: C.primary }]}>✕</Text>
+            <X size={16} color={C.primary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Smart Insights</Text>
           <View style={{ width: 36 }} />
@@ -63,7 +65,7 @@ export default function NotificationSettingsScreen() {
 
           {/* Info banner */}
           <View style={[styles.infoBanner, { backgroundColor: C.primaryLight }]}>
-            <Text style={styles.infoIcon}>💡</Text>
+            <Info size={16} color={C.primary} strokeWidth={2} />
             <Text style={[styles.infoText, { color: C.primary }]}>
               Insights are friendly, non-stressful nudges to help you stay on top of your finances.
             </Text>
@@ -71,7 +73,7 @@ export default function NotificationSettingsScreen() {
 
           {/* ── 1. Financial Awareness ───────────────────────── */}
           <Section
-            icon="📊"
+            Icon={BarChart2}
             title="Financial Awareness"
             subtitle="Track spending habits and unusual activity"
             enabled={prefs.financialAwareness.enabled}
@@ -116,7 +118,7 @@ export default function NotificationSettingsScreen() {
 
           {/* ── 2. Budget Control ────────────────────────────── */}
           <Section
-            icon="🎯"
+            Icon={Target}
             title="Budget Control"
             subtitle="Stay aware of budget limits before you hit them"
             enabled={prefs.budgetControl.enabled}
@@ -144,7 +146,7 @@ export default function NotificationSettingsScreen() {
 
           {/* ── 3. Account Protection ────────────────────────── */}
           <Section
-            icon="🛡️"
+            Icon={Shield}
             title="Account Protection"
             subtitle="Prevent surprises before they happen"
             enabled={prefs.accountProtection.enabled}
@@ -189,7 +191,7 @@ export default function NotificationSettingsScreen() {
 
           {/* ── 4. Motivation & Goals ────────────────────────── */}
           <Section
-            icon="🌟"
+            Icon={Sparkles}
             title="Motivation & Goals"
             subtitle="Celebrate progress and stay encouraged"
             enabled={prefs.motivation.enabled}
@@ -228,7 +230,7 @@ export default function NotificationSettingsScreen() {
           <View style={[styles.sectionCard, { backgroundColor: C.surface }]}>
             <View style={[styles.sectionHeader, { borderBottomColor: C.divider }]}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionIcon}>🔔</Text>
+                <View style={styles.sectionIconWrap}><Bell size={16} color={C.textSecondary} strokeWidth={2} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Push Notifications</Text>
                   <Text style={[styles.sectionSubtitle, { color: C.textTertiary }]}>Receive insights even when the app is closed</Text>
@@ -263,9 +265,12 @@ export default function NotificationSettingsScreen() {
               onPress={handleReset}
               style={[styles.secondaryBtn, { backgroundColor: C.surface, borderColor: C.border }]}
             >
-              <Text style={[styles.secondaryBtnText, { color: C.danger }]}>
-                {saveAnim ? '✓ Reset to defaults' : 'Reset all settings to defaults'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {saveAnim && <Check size={13} color={C.danger} strokeWidth={2.5} />}
+                <Text style={[styles.secondaryBtnText, { color: C.danger }]}>
+                  {saveAnim ? 'Reset to defaults' : 'Reset all settings to defaults'}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -279,9 +284,9 @@ export default function NotificationSettingsScreen() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function Section({
-  icon, title, subtitle, enabled, onToggle, children, C,
+  Icon, title, subtitle, enabled, onToggle, children, C,
 }: {
-  icon: string; title: string; subtitle: string;
+  Icon: LucideIcon; title: string; subtitle: string;
   enabled: boolean; onToggle: (v: boolean) => void;
   children: React.ReactNode; C: any;
 }) {
@@ -289,7 +294,7 @@ function Section({
     <View style={[styles.sectionCard, { backgroundColor: C.surface }]}>
       <View style={[styles.sectionHeader, { borderBottomColor: C.divider }]}>
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionIcon}>{icon}</Text>
+          <View style={styles.sectionIconWrap}><Icon size={16} color={C.textSecondary} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{title}</Text>
             <Text style={[styles.sectionSubtitle, { color: C.textTertiary }]}>{subtitle}</Text>
@@ -367,8 +372,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[5], paddingVertical: Spacing[4],
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backBtn:     { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backText:    { fontSize: 18 },
+  backBtn:     { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...Typography.titleMedium, fontWeight: '700' },
 
   content: { paddingHorizontal: Spacing[5], paddingTop: Spacing[4], gap: Spacing[4] },
@@ -377,14 +381,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: Spacing[3],
     borderRadius: BorderRadius.xl, padding: Spacing[4],
   },
-  infoIcon: { fontSize: 20 },
   infoText: { ...Typography.bodySmall, flex: 1, lineHeight: 18 },
 
   // Section card
   sectionCard:     { borderRadius: BorderRadius.xl, overflow: 'hidden', ...Shadow.sm },
   sectionHeader:   { paddingHorizontal: Spacing[4], paddingVertical: Spacing[4], borderBottomWidth: StyleSheet.hairlineWidth },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing[3] },
-  sectionIcon:     { fontSize: 22 },
+  sectionIconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   sectionTitle:    { ...Typography.labelLarge, fontWeight: '700' },
   sectionSubtitle: { ...Typography.caption, marginTop: 2 },
   sectionBody:     { padding: Spacing[4], gap: Spacing[3] },

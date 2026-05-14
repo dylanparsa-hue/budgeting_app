@@ -50,6 +50,9 @@ export const fetchCategories = (userId: string) =>
 export const createCategory = (data: Record<string, unknown>) =>
   supabase.from('categories').insert(data).select().single();
 
+export const updateCategory = (id: string, data: Record<string, unknown>) =>
+  supabase.from('categories').update(data).eq('id', id).select().single();
+
 export const deleteCategory = (id: string) =>
   supabase.from('categories').delete().eq('id', id);
 

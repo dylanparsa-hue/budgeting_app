@@ -14,15 +14,16 @@ import { BorderRadius, Spacing } from '../../src/theme/spacing';
 import { parseCurrencyInput }  from '../../src/utils/currency';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
 import { RecurringCategory, RecurringFrequency } from '../../src/types';
+import { BILL_META, X, AlertTriangle } from '../../src/lib/icons';
 
-const CATEGORIES: { value: RecurringCategory; label: string; icon: string }[] = [
-  { value: 'rent',         label: 'Rent / Mortgage', icon: '🏠' },
-  { value: 'utilities',    label: 'Utilities / Bills', icon: '💡' },
-  { value: 'subscription', label: 'Subscription',    icon: '📱' },
-  { value: 'debt',         label: 'Debt / Loan',     icon: '💳' },
-  { value: 'insurance',    label: 'Insurance',        icon: '🛡️' },
-  { value: 'transport',    label: 'Transport',        icon: '🚗' },
-  { value: 'other',        label: 'Other',            icon: '📦' },
+const CATEGORIES: { value: RecurringCategory; label: string }[] = [
+  { value: 'rent',         label: 'Rent / Mortgage'  },
+  { value: 'utilities',    label: 'Utilities / Bills' },
+  { value: 'subscription', label: 'Subscription'     },
+  { value: 'debt',         label: 'Debt / Loan'      },
+  { value: 'insurance',    label: 'Insurance'         },
+  { value: 'transport',    label: 'Transport'         },
+  { value: 'other',        label: 'Other'             },
 ];
 
 const FREQUENCIES: { value: RecurringFrequency; label: string }[] = [
@@ -77,7 +78,7 @@ export default function AddRecurringModal() {
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/plan')}
             style={[styles.closeBtn, { backgroundColor: C.surfaceRaised }]}
           >
-            <Text style={[styles.closeBtnText, { color: C.textSecondary }]}>✕</Text>
+            <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
             {isEditing ? 'Edit Expense' : 'Add Fixed Expense'}
@@ -89,7 +90,10 @@ export default function AddRecurringModal() {
 
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[styles.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -149,6 +153,8 @@ export default function AddRecurringModal() {
             <View style={styles.categoryGrid}>
               {CATEGORIES.map(cat => {
                 const selected = category === cat.value;
+                const meta = BILL_META[cat.value] ?? BILL_META.other;
+                const CatIcon = meta.Icon;
                 return (
                   <TouchableOpacity
                     key={cat.value}
@@ -159,7 +165,7 @@ export default function AddRecurringModal() {
                       selected && { backgroundColor: C.primary },
                     ]}
                   >
-                    <Text style={styles.catIcon}>{cat.icon}</Text>
+                    <CatIcon size={16} color={selected ? '#fff' : meta.color} strokeWidth={2} />
                     <Text style={[styles.catLabel, { color: selected ? '#fff' : C.textPrimary }]}>
                       {cat.label}
                     </Text>

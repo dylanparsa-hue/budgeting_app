@@ -5,15 +5,15 @@ import {
   TouchableOpacity, Dimensions, Animated,
 } from 'react-native';
 import { router } from 'expo-router';
-import { House, BarChart2, Target, User, Plus } from 'lucide-react-native';
+import { House, BarChart2, Wallet, User, Plus } from 'lucide-react-native';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
 
 const TABS = [
   { name: 'index',   label: 'Home',     Icon: House    },
   { name: 'budgets', label: 'Insights', Icon: BarChart2 },
-  { name: 'goals',   label: 'Goals',    Icon: Target   },
-  { name: 'profile', label: 'You',      Icon: User     },
+  { name: 'goals',   label: 'Finances', Icon: Wallet   },
+  { name: 'profile', label: 'Account',  Icon: User     },
 ];
 
 function TabButton({
@@ -62,15 +62,15 @@ function TabButton({
 }
 
 const LEFT_TABS  = [TABS[0], TABS[1]]; // Home, Insights
-const RIGHT_TABS = [TABS[2], TABS[3]]; // Goals, You
+const RIGHT_TABS = [TABS[2], TABS[3]]; // Finances, Account
 
 function CustomTabBar({ state, navigation }: any) {
   const C      = useTheme();
   const sw     = Dimensions.get('window').width;
   const BAR    = sw - 32;
-  const FAB_W  = 64;  // gap reserved for FAB in the center
-  const SIDE_W = (BAR - FAB_W) / 2;  // width of each half
-  const TW     = SIDE_W / 2;          // width per tab (2 per side)
+  const FAB_W  = 64;
+  const SIDE_W = (BAR - FAB_W) / 2;
+  const TW     = SIDE_W / 2;
 
   const bottom = Platform.OS === 'ios' ? 28 : 16;
   const barBg  = C.isDark ? C.surface : '#FFFFFF';
@@ -118,7 +118,7 @@ function CustomTabBar({ state, navigation }: any) {
         </View>
       </View>
 
-      {/* Right pill: Goals + You */}
+      {/* Right pill: Finances + Account */}
       <View
         style={[
           styles.halfBar,

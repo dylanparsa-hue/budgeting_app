@@ -10,6 +10,7 @@ import { Input }  from '../../src/components/ui/Input';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
 import { BorderRadius, Spacing } from '../../src/theme/spacing';
+import { Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react-native';
 
 export default function RegisterScreen() {
   const C = useTheme();
@@ -47,7 +48,7 @@ export default function RegisterScreen() {
   if (success) {
     return (
       <View style={[styles.successScreen, { backgroundColor: C.background }]}>
-        <Text style={styles.successEmoji}>📬</Text>
+        <View style={styles.successIconWrap}><Mail size={36} color={C.primary} strokeWidth={1.8} /></View>
         <Text style={[styles.successTitle, { color: C.textPrimary }]}>Check your email!</Text>
         <Text style={[styles.successText, { color: C.textSecondary }]}>
           We sent a confirmation link. Verify your email then sign in.
@@ -81,11 +82,14 @@ export default function RegisterScreen() {
 
         <View style={styles.body}>
           <Text style={[styles.title, { color: C.textPrimary }]}>Create account</Text>
-          <Text style={[styles.sub, { color: C.textSecondary }]}>Start your journey to financial freedom ✨</Text>
+          <Text style={[styles.sub, { color: C.textSecondary }]}>Start your journey to financial freedom</Text>
 
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[styles.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -114,7 +118,7 @@ export default function RegisterScreen() {
               secureTextEntry={!showPw}
               placeholder="Min. 6 characters"
               hint="At least 6 characters"
-              rightIcon={<Text style={styles.togglePw}>{showPw ? '🙈' : '👁️'}</Text>}
+              rightIcon={showPw ? <EyeOff size={18} color={C.textTertiary} strokeWidth={2} /> : <Eye size={18} color={C.textTertiary} strokeWidth={2} />}
               onRightPress={() => setShowPw(v => !v)}
             />
             <Input
@@ -167,7 +171,6 @@ const styles = StyleSheet.create({
   errorBox: { borderRadius: BorderRadius.lg, padding: Spacing[3] },
   errorText:{ ...Typography.bodySmall },
   fields:   { gap: Spacing[4] },
-  togglePw: { fontSize: 18 },
   loginLink:{ alignItems: 'center' },
   loginText:{ ...Typography.bodyMedium },
   link:     { fontWeight: '600' },
@@ -176,7 +179,7 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     padding: Spacing[8], gap: Spacing[4],
   },
-  successEmoji: { fontSize: 64 },
+  successIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(159,232,112,0.15)', alignItems: 'center', justifyContent: 'center' },
   successTitle: { ...Typography.headingMedium, textAlign: 'center' },
   successText:  { ...Typography.bodyMedium, textAlign: 'center', lineHeight: 24 },
   successBtn: {

@@ -32,6 +32,7 @@ import { useTheme }    from '../../theme/ThemeContext';
 import { Typography }  from '../../theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../theme/spacing';
 import { formatCurrency } from '../../utils/currency';
+import { TrendingUp } from 'lucide-react-native';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -115,28 +116,16 @@ const f = (n: number) => n.toFixed(1);
 // Data builders
 // ─────────────────────────────────────────────────────────────────────────────
 
-function toMonthly(amount: number, freq: string) {
-  if (freq === 'weekly') return amount * 52 / 12;
-  if (freq === 'yearly') return amount / 12;
-  return amount;
-}
-
 function buildData(
   transactions: Transaction[],
-  recurring: RecurringExpense[],
   range: TimeRange,
 ): DataPoint[] {
-  const now         = new Date();
-  const billsMonthly = recurring.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const now = new Date();
 
   const incomeIn   = (arr: Transaction[]) => arr.filter(t => t.type === 'income' ).reduce((s, t) => s + t.amount, 0);
   const expensesIn = (arr: Transaction[]) => arr.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const inRange    = (t: Transaction, start: Date, end: Date) =>
     isWithinInterval(new Date(t.date), { start, end });
-
-  // Bills apportioned per bucket type so all series are always honest
-  const billsDay   = billsMonthly / 30.44;   // per day  (1W range)
-  const billsWeek  = billsMonthly / 4.33;    // per week (1M range)
 
   if (range === '1W') {
     return Array.from({ length: 7 }, (_, i) => {
@@ -145,7 +134,7 @@ function buildData(
       const end   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
       const slice = transactions.filter(t => inRange(t, start, end));
       const inc = incomeIn(slice);
-      const exp = expensesIn(slice) + billsDay;
+      const exp = expensesIn(slice);
       return {
         label:     format(d, 'EEE'),
         fullLabel: format(d, 'EEE, MMM d'),
@@ -163,7 +152,7 @@ function buildData(
       const end    = endOfWeek(anchor,   { weekStartsOn: 1 });
       const slice  = transactions.filter(t => inRange(t, start, end));
       const inc = incomeIn(slice);
-      const exp = expensesIn(slice) + billsWeek;
+      const exp = expensesIn(slice);
       return {
         label:     `W${i + 1}`,
         fullLabel: `Week of ${format(start, 'MMM d')}`,
@@ -184,7 +173,7 @@ function buildData(
         return td.getMonth() + 1 === m && td.getFullYear() === y;
       });
       const inc = incomeIn(slice);
-      const exp = expensesIn(slice) + billsMonthly;
+      const exp = expensesIn(slice);
       return {
         label:     format(d, 'MMM'),
         fullLabel: format(d, 'MMMM yyyy'),
@@ -205,7 +194,7 @@ function buildData(
       return td.getMonth() + 1 === m && td.getFullYear() === y;
     });
     const inc = incomeIn(slice);
-    const exp = expensesIn(slice) + billsMonthly;
+    const exp = expensesIn(slice);
     return {
       label:     format(d, 'MMM'),
       fullLabel: format(d, 'MMM yyyy'),
@@ -267,8 +256,8 @@ export function FinancialChart({ transactions, recurring, currency }: FinancialC
 
   // ── Build data ─────────────────────────────────────────────────────────────
   const data = useMemo(
-    () => buildData(transactions, recurring, range),
-    [transactions, recurring, range],
+    () => buildData(transactions, range),
+    [transactions, range],
   );
 
   const allZero = data.every(d => d.income === 0 && d.expenses === 0 && d.net === 0);
@@ -416,7 +405,7 @@ export function FinancialChart({ transactions, recurring, currency }: FinancialC
       >
         {allZero ? (
           <View style={S.noData}>
-            <Text style={{ fontSize: 28 }}>📈</Text>
+            <TrendingUp size={32} color={C.textTertiary} strokeWidth={1.5} />
             <Text style={[S.noDataText, { color: C.textTertiary }]}>
               Add transactions to see trends
             </Text>

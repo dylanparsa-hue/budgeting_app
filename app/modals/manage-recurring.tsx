@@ -28,7 +28,8 @@ import { useTheme }           from '../../src/theme/ThemeContext';
 import { Typography }         from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import { formatCurrency }     from '../../src/utils/currency';
-import { Pencil, Trash2 }    from 'lucide-react-native';
+import { Pencil, Trash2, X, FileText, BarChart2 } from 'lucide-react-native';
+import { BILL_META } from '../../src/lib/icons';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -40,14 +41,15 @@ function toMonthly(amount: number, freq: string) {
   return amount;
 }
 
-const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
-  rent:         { icon: '🏠', color: '#6366F1', label: 'Rent / Mortgage'   },
-  utilities:    { icon: '⚡', color: '#F59E0B', label: 'Utilities / Bills'  },
-  subscription: { icon: '📱', color: '#8B5CF6', label: 'Subscriptions'     },
-  debt:         { icon: '💳', color: '#EF4444', label: 'Debt / Loans'      },
-  insurance:    { icon: '🛡️', color: '#3B82F6', label: 'Insurance'          },
-  transport:    { icon: '🚗', color: '#10B981', label: 'Transport'          },
-  other:        { icon: '📦', color: '#6B7280', label: 'Other'             },
+// Labels for manage-recurring (slightly different wording than BILL_META)
+const CAT_LABEL: Record<string, string> = {
+  rent:         'Rent / Mortgage',
+  utilities:    'Utilities / Bills',
+  subscription: 'Subscriptions',
+  debt:         'Debt / Loans',
+  insurance:    'Insurance',
+  transport:    'Transport',
+  other:        'Other',
 };
 
 const FREQ_LABEL: Record<string, string> = {
@@ -72,7 +74,9 @@ function RecurringRow({
   onDelete: () => void;
 }) {
   const C      = useTheme();
-  const meta   = CAT_META[item.category] ?? CAT_META.other;
+  const meta   = BILL_META[item.category] ?? BILL_META.other;
+  const catLabel = CAT_LABEL[item.category] ?? CAT_LABEL.other;
+  const RowIcon = meta.Icon;
   const monthly = toMonthly(item.amount, item.frequency);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -99,7 +103,7 @@ function RecurringRow({
       <View style={[S.row, { backgroundColor: C.surface }]}>
         {/* Coloured icon */}
         <View style={[S.rowIcon, { backgroundColor: meta.color + '18' }]}>
-          <Text style={S.rowEmoji}>{meta.icon}</Text>
+          <RowIcon size={20} color={meta.color} strokeWidth={2} />
         </View>
 
         {/* Info */}
@@ -108,7 +112,7 @@ function RecurringRow({
             {item.name}
           </Text>
           <Text style={[S.rowMeta, { color: C.textTertiary }]}>
-            {meta.label} · {FREQ_LABEL[item.frequency]}
+            {catLabel} · {FREQ_LABEL[item.frequency]}
           </Text>
         </View>
 
@@ -197,7 +201,7 @@ export default function ManageRecurringModal() {
           style={[S.closeBtn, { backgroundColor: C.surfaceRaised }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={[S.closeBtnText, { color: C.textSecondary }]}>✕</Text>
+          <X size={16} color={C.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={[S.headerTitle, { color: C.textPrimary }]}>Fixed Expenses</Text>
         <TouchableOpacity
@@ -227,7 +231,7 @@ export default function ManageRecurringModal() {
       {/* ── List ──────────────────────────────────────────────────────────── */}
       {items.length === 0 ? (
         <View style={S.emptyWrap}>
-          <Text style={S.emptyIcon}>📋</Text>
+          <FileText size={48} color={C.textTertiary} strokeWidth={1.5} />
           <Text style={[S.emptyTitle, { color: C.textPrimary }]}>No fixed expenses yet</Text>
           <Text style={[S.emptySub, { color: C.textTertiary }]}>
             Add rent, bills, subscriptions and loans so the app can calculate your true available balance.
@@ -245,14 +249,15 @@ export default function ManageRecurringModal() {
           showsVerticalScrollIndicator={false}
         >
           {grouped.map(([cat, catItems]) => {
-            const meta      = CAT_META[cat] ?? CAT_META.other;
+            const meta      = BILL_META[cat] ?? BILL_META.other;
+            const catLabel  = CAT_LABEL[cat] ?? CAT_LABEL.other;
             const catTotal  = catItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
             return (
               <View key={cat} style={S.group}>
                 {/* Group header */}
                 <View style={S.groupHeader}>
                   <View style={[S.groupDot, { backgroundColor: meta.color }]} />
-                  <Text style={[S.groupTitle, { color: C.textSecondary }]}>{meta.label}</Text>
+                  <Text style={[S.groupTitle, { color: C.textSecondary }]}>{catLabel}</Text>
                   <Text style={[S.groupTotal, { color: meta.color }]}>
                     {formatCurrency(catTotal, currency)}/mo
                   </Text>
@@ -280,14 +285,18 @@ export default function ManageRecurringModal() {
           <View style={[S.breakdown, { backgroundColor: C.surface }]}>
             <Text style={[S.breakdownTitle, { color: C.textPrimary }]}>Monthly breakdown</Text>
             {grouped.map(([cat, catItems]) => {
-              const meta     = CAT_META[cat] ?? CAT_META.other;
+              const meta     = BILL_META[cat] ?? BILL_META.other;
+              const bLabel   = CAT_LABEL[cat] ?? CAT_LABEL.other;
+              const BIcon    = meta.Icon;
               const catTotal = catItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
               const pct      = billsTotal > 0 ? (catTotal / billsTotal) * 100 : 0;
               return (
                 <View key={cat} style={S.breakdownRow}>
-                  <Text style={S.breakdownEmoji}>{meta.icon}</Text>
+                  <View style={S.breakdownIconWrap}>
+                    <BIcon size={14} color={meta.color} strokeWidth={2} />
+                  </View>
                   <Text style={[S.breakdownLabel, { color: C.textSecondary }]} numberOfLines={1}>
-                    {meta.label}
+                    {bLabel}
                   </Text>
                   <View style={[S.breakdownBarTrack, { backgroundColor: C.surfaceRaised }]}>
                     <View style={[S.breakdownBarFill, { width: `${pct}%`, backgroundColor: meta.color }]} />
@@ -298,7 +307,9 @@ export default function ManageRecurringModal() {
             })}
             <View style={[S.breakdownDivider, { backgroundColor: C.divider }]} />
             <View style={S.breakdownRow}>
-              <Text style={S.breakdownEmoji}>📊</Text>
+              <View style={S.breakdownIconWrap}>
+                <BarChart2 size={14} color={C.danger} strokeWidth={2} />
+              </View>
               <Text style={[S.breakdownLabel, { color: C.textPrimary, fontWeight: '700' }]}>Total</Text>
               <View style={S.breakdownBarTrack} />
               <Text style={[S.breakdownPct, { color: C.danger, fontWeight: '800' }]}>
@@ -383,7 +394,7 @@ const S = StyleSheet.create({
   },
   breakdownTitle:    { ...Typography.titleSmall, fontWeight: '700' },
   breakdownRow:      { flexDirection: 'row', alignItems: 'center', gap: Spacing[2] },
-  breakdownEmoji:    { fontSize: 16, width: 22, textAlign: 'center' },
+  breakdownIconWrap: { width: 22, alignItems: 'center' },
   breakdownLabel:    { ...Typography.caption, width: 110 },
   breakdownBarTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   breakdownBarFill:  { height: '100%', borderRadius: 3 },

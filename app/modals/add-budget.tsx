@@ -16,6 +16,9 @@ import { Typography } from '../../src/theme/typography';
 import { BorderRadius, Spacing } from '../../src/theme/spacing';
 import { getExpenseCategories }  from '../../src/utils/categories';
 import { parseCurrencyInput }    from '../../src/utils/currency';
+import { X, AlertTriangle, Trash2, CATEGORY_ICON } from '../../src/lib/icons';
+import { Package } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 const now   = new Date();
 const MONTH = now.getMonth() + 1;
@@ -98,7 +101,7 @@ export default function AddBudgetModal() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.header, { borderBottomColor: C.border }]}>
           <TouchableOpacity onPress={goBack} style={[styles.closeBtn, { backgroundColor: C.surfaceRaised }]}>
-            <Text style={[styles.closeBtnText, { color: C.textSecondary }]}>✕</Text>
+            <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
             {isEditing ? 'Edit Budget' : 'Set Budget'}
@@ -113,7 +116,10 @@ export default function AddBudgetModal() {
 
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={[styles.errorText, { color: C.danger }]}>⚠️  {error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.errorText, { color: C.danger, flex: 1 }]}>{error}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -148,7 +154,10 @@ export default function AddBudgetModal() {
                   ]}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.catEmoji}>{cat.icon}</Text>
+                  {(() => {
+                    const CatIcon: LucideIcon = CATEGORY_ICON[cat.icon?.toLowerCase() ?? ''] ?? CATEGORY_ICON[cat.name?.toLowerCase() ?? ''] ?? Package;
+                    return <CatIcon size={18} color={selected ? '#fff' : (cat.color ?? C.textSecondary)} strokeWidth={2} />;
+                  })()}
                   <Text style={[styles.catName, { color: selected ? '#fff' : C.textPrimary }]}>
                     {cat.name}
                   </Text>
@@ -172,7 +181,10 @@ export default function AddBudgetModal() {
               style={[styles.deleteBtn, { borderColor: C.danger + '60' }]}
               activeOpacity={0.75}
             >
-              <Text style={[styles.deleteBtnText, { color: C.danger }]}>🗑️  Delete budget</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Trash2 size={16} color={C.danger} strokeWidth={2} />
+                <Text style={[styles.deleteBtnText, { color: C.danger }]}>Delete budget</Text>
+              </View>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -184,7 +196,7 @@ export default function AddBudgetModal() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowDeleteConfirm(false)} />
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <View style={[styles.deleteIconBox, { backgroundColor: C.dangerLight }]}>
-              <Text style={styles.deleteModalIcon}>🗑️</Text>
+              <Trash2 size={28} color={C.danger} strokeWidth={2} />
             </View>
             <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>Delete Budget?</Text>
             <Text style={[styles.deleteModalBody, { color: C.textSecondary }]}>

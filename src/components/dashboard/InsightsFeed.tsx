@@ -9,6 +9,8 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Typography } from '../../theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../theme/spacing';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { INSIGHT_SEVERITY_ICON, X, Settings } from '../../lib/icons';
+import type { LucideIcon } from 'lucide-react-native';
 
 // ── Colour mapping by severity ────────────────────────────────────────────────
 function useSeverityColors(severity: InsightSeverity, C: any) {
@@ -53,7 +55,7 @@ function InsightItem({ insight }: { insight: SmartInsight }) {
       >
         {/* Icon */}
         <View style={styles.iconWrap}>
-          <Text style={styles.icon}>{insight.icon}</Text>
+          {(() => { const SevIcon: LucideIcon = INSIGHT_SEVERITY_ICON[insight.severity] ?? INSIGHT_SEVERITY_ICON.info; return <SevIcon size={18} color={colors.text} strokeWidth={2} />; })()}
         </View>
 
         {/* Text */}
@@ -79,7 +81,7 @@ function InsightItem({ insight }: { insight: SmartInsight }) {
           style={styles.dismissBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={[styles.dismissText, { color: C.textTertiary }]}>✕</Text>
+          <X size={14} color={C.textTertiary} strokeWidth={2.5} />
         </TouchableOpacity>
       </Pressable>
     </Animated.View>
@@ -112,7 +114,10 @@ export function InsightsFeed({ insights, maxVisible = 3, showAll = false }: Insi
           </View>
         </View>
         <TouchableOpacity onPress={() => router.push('/modals/notification-settings' as any)}>
-          <Text style={[styles.settingsLink, { color: C.primary }]}>⚙ Settings</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Settings size={14} color={C.primary} strokeWidth={2} />
+            <Text style={[styles.settingsLink, { color: C.primary }]}>Settings</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -149,7 +154,7 @@ export function PrimaryInsightCard({ insight }: { insight: SmartInsight }) {
       <View style={styles.primaryCircle1} />
       <View style={styles.primaryCircle2} />
       <View style={styles.primaryContent}>
-        <Text style={styles.primaryIcon}>{insight.icon}</Text>
+        {(() => { const SevIcon: LucideIcon = INSIGHT_SEVERITY_ICON[insight.severity] ?? INSIGHT_SEVERITY_ICON.info; return <SevIcon size={22} color="#fff" strokeWidth={2} />; })()}
         <View style={{ flex: 1, gap: Spacing[0.5] }}>
           <Text style={styles.primaryTitle}>{insight.title}</Text>
           <Text style={styles.primaryMsg}>{insight.message}</Text>
@@ -163,7 +168,7 @@ export function PrimaryInsightCard({ insight }: { insight: SmartInsight }) {
           onPress={() => dismiss(insight.id)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>✕</Text>
+          <X size={14} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
     </View>
@@ -191,13 +196,11 @@ const styles = StyleSheet.create({
     ...Shadow.sm,
   },
   iconWrap:    { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  icon:        { fontSize: 22 },
   textWrap:    { flex: 1, gap: Spacing[0.5] },
   title:       { ...Typography.labelLarge, fontWeight: '700' },
   message:     { ...Typography.caption, lineHeight: 17 },
   actionLabel: { ...Typography.caption, fontWeight: '700', marginTop: Spacing[1] },
   dismissBtn:  { padding: Spacing[0.5] },
-  dismissText: { fontSize: 13 },
 
   showMoreBtn:  { alignItems: 'center', paddingVertical: Spacing[1.5] },
   showMoreText: { ...Typography.caption, fontWeight: '700' },
@@ -220,7 +223,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.07)',
   },
   primaryContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing[4], zIndex: 1 },
-  primaryIcon:    { fontSize: 36 },
   primaryTitle:   { ...Typography.titleSmall, color: '#fff', fontWeight: '700' },
   primaryMsg:     { ...Typography.caption, color: 'rgba(255,255,255,0.88)', lineHeight: 17 },
   primaryAction:  { ...Typography.caption, color: 'rgba(255,255,255,0.75)', fontWeight: '700', marginTop: Spacing[1.5] },
