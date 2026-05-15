@@ -9,6 +9,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { CATEGORY_ICON, Trash2 } from '../../lib/icons';
 import type { LucideIcon } from 'lucide-react-native';
 import { Package } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 interface TransactionItemProps {
   transaction:  Transaction;
@@ -17,15 +18,16 @@ interface TransactionItemProps {
   onDelete?:    () => void;
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  if (isToday(d))     return 'Today';
-  if (isYesterday(d)) return 'Yesterday';
-  return format(d, 'MMM d');
-}
-
 export function TransactionItem({ transaction, currency = 'MYR', onPress, onDelete }: TransactionItemProps) {
   const C = useTheme();
+  const { t } = useTranslation();
+
+  function formatDate(dateStr: string) {
+    const d = new Date(dateStr);
+    if (isToday(d))     return t('home.today');
+    if (isYesterday(d)) return t('home.yesterday');
+    return format(d, 'MMM d');
+  }
   const { category, type, amount, note, date } = transaction;
   const isIncome = type === 'income';
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Animated, KeyboardAvoidingView, Platform, TextInput, ActivityIndicator,
-  Modal, Dimensions,
+  Modal, Dimensions, I18nManager,
 } from 'react-native';
 import {
   X, Check, CheckCircle2, AlertTriangle, AlertCircle, Calendar,
@@ -36,6 +36,7 @@ import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import { parseCurrencyInput }  from '../../src/utils/currency';
 import { getExpenseCategories, getIncomeCategories, PAYMENT_METHODS } from '../../src/utils/categories';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
+import { useTranslation } from 'react-i18next';
 import { makeBudgetMonthTag, makeBudgetSplitTag, getBudgetMonthKey, getExpenseBudgetContributions } from '../../src/utils/budgetMonth';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -167,6 +168,7 @@ function friendlyDate(d: Date): string {
 
 export default function AddTransactionModal() {
   const C  = useTheme();
+  const { t: tFn } = useTranslation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user, profile } = useAuthStore();
   const {
@@ -752,7 +754,7 @@ export default function AddTransactionModal() {
             <ChevronLeft size={16} color={C.textSecondary} strokeWidth={2.5} />
           </TouchableOpacity>
           <Text style={[s.headerTitle, { color: C.textPrimary }]}>
-            {type === 'income' ? 'Income Type' : 'Category'}
+            {type === 'income' ? tFn('addTransaction.income') : tFn('addTransaction.category')}
           </Text>
           <TouchableOpacity
             onPress={() => openCreator()}
@@ -768,7 +770,7 @@ export default function AddTransactionModal() {
           <TextInput
             value={catSearch}
             onChangeText={setCatSearch}
-            placeholder="Search categories…"
+            placeholder={tFn('addTransaction.searchPlaceholder')}
             placeholderTextColor={C.textTertiary}
             style={[s.searchInput, { color: C.textPrimary }]}
             autoCorrect={false}
@@ -785,7 +787,7 @@ export default function AddTransactionModal() {
           {systemCats.length > 0 && (
             <>
               <Text style={[s.catGroupLabel, { color: C.textTertiary }]}>
-                {type === 'income' ? 'Income types' : 'Categories'}
+                {type === 'income' ? tFn('addTransaction.income') : tFn('addTransaction.category')}
               </Text>
               <View style={s.catGrid}>
                 {systemCats.map(cat => (
@@ -805,7 +807,7 @@ export default function AddTransactionModal() {
           {customCats.length > 0 && (
             <>
               <Text style={[s.catGroupLabel, { color: C.textTertiary, marginTop: Spacing[4] }]}>
-                My categories
+                {tFn('addTransaction.myCategories')}
               </Text>
               <View style={s.catGrid}>
                 {customCats.map(cat => (
@@ -825,7 +827,7 @@ export default function AddTransactionModal() {
           {filtered.length === 0 && (
             <View style={s.emptySearch}>
               <Package size={32} color={C.textTertiary} strokeWidth={1.5} />
-              <Text style={[s.emptySearchText, { color: C.textTertiary }]}>No categories found</Text>
+              <Text style={[s.emptySearchText, { color: C.textTertiary }]}>{tFn('addTransaction.noCategories')}</Text>
               <TouchableOpacity onPress={() => { setCatSearch(''); openCreator(); }} style={[s.emptySearchBtn, { backgroundColor: C.primaryLight }]}>
                 <Plus size={14} color={C.primary} strokeWidth={2.5} />
                 <Text style={[s.emptySearchBtnText, { color: C.primary }]}>Create "{catSearch}"</Text>
@@ -843,8 +845,8 @@ export default function AddTransactionModal() {
               <Plus size={18} color={C.primary} strokeWidth={2.5} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[s.createCatLabel, { color: C.textPrimary }]}>Create custom category</Text>
-              <Text style={[s.createCatSub,   { color: C.textTertiary }]}>Custom icon, colour & name</Text>
+              <Text style={[s.createCatLabel, { color: C.textPrimary }]}>{tFn('addTransaction.createCustomCat')}</Text>
+              <Text style={[s.createCatSub,   { color: C.textTertiary }]}>{tFn('addTransaction.createCustomCatSub')}</Text>
             </View>
             <ChevronRight size={16} color={C.textTertiary} strokeWidth={2} />
           </TouchableOpacity>
@@ -1180,7 +1182,7 @@ export default function AddTransactionModal() {
             <X size={16} color={C.textSecondary} strokeWidth={2.5} />
           </TouchableOpacity>
           <Text style={[s.headerTitle, { color: C.textPrimary }]}>
-            {isEditing ? 'Edit Transaction' : 'Add Transaction'}
+            {isEditing ? tFn('addTransaction.titleEdit') : tFn('addTransaction.titleAdd')}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -1195,7 +1197,7 @@ export default function AddTransactionModal() {
           {success && (
             <View style={[s.successBox, { backgroundColor: C.successLight }]}>
               <CheckCircle2 size={16} color={C.success} strokeWidth={2} />
-              <Text style={[s.successText, { color: C.success }]}>{isEditing ? 'Updated!' : 'Saved!'}</Text>
+              <Text style={[s.successText, { color: C.success }]}>{isEditing ? tFn('addTransaction.update') : tFn('common.save')}</Text>
             </View>
           )}
           {!!error && (
@@ -1222,7 +1224,7 @@ export default function AddTransactionModal() {
                     : <ArrowUp   size={14} color={type === t ? C.textPrimary : C.textTertiary} strokeWidth={2.5} />
                   }
                   <Text style={[s.typeToggleText, { color: type === t ? C.textPrimary : C.textTertiary }]}>
-                    {t === 'expense' ? 'Expense' : 'Income'}
+                    {t === 'expense' ? tFn('addTransaction.expense') : tFn('addTransaction.income')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1299,7 +1301,7 @@ export default function AddTransactionModal() {
                   <View style={[s.fieldRowIcon, { backgroundColor: C.border }]}>
                     <Package size={18} color={C.textTertiary} strokeWidth={2} />
                   </View>
-                  <Text style={[s.fieldRowPlaceholder, { color: C.textTertiary }]}>Select category</Text>
+                  <Text style={[s.fieldRowPlaceholder, { color: C.textTertiary }]}>{tFn('addTransaction.selectCategory')}</Text>
                 </>
               )}
             </View>
@@ -1326,10 +1328,10 @@ export default function AddTransactionModal() {
 
           {/* Note */}
           <Input
-            label="Note (optional)"
+            label={tFn('addTransaction.note')}
             value={note}
             onChangeText={setNote}
-            placeholder="What was this for?"
+            placeholder={tFn('addTransaction.notePlaceholder')}
             maxLength={200}
           />
 
@@ -1341,14 +1343,14 @@ export default function AddTransactionModal() {
                 : <ChevronDown size={14} color={C.primary} strokeWidth={2.5} />
               }
               <Text style={[s.advancedToggleText, { color: C.primary }]}>
-                {showAdvanced ? 'Hide options' : 'More options'}
+                {showAdvanced ? tFn('addTransaction.hideOptions') : tFn('addTransaction.moreOptions')}
               </Text>
             </View>
           </TouchableOpacity>
 
           {showAdvanced && (
             <View style={s.advanced}>
-              <Text style={[s.sectionLabel, { color: C.textPrimary }]}>Payment Method</Text>
+              <Text style={[s.sectionLabel, { color: C.textPrimary }]}>{tFn('addTransaction.paymentMethod')}</Text>
               <View style={s.paymentRow}>
                 {PAYMENT_METHODS.map(m => {
                   const PMIcon = PAYMENT_ICONS[m.icon];
@@ -1373,7 +1375,7 @@ export default function AddTransactionModal() {
           )}
 
           <Button
-            label={isSaving ? 'Saving…' : (isEditing ? 'Save Changes' : `Save ${type === 'expense' ? 'Expense' : 'Income'}`)}
+            label={isSaving ? tFn('finances.saving') : (isEditing ? tFn('addTransaction.update') : tFn('addTransaction.save'))}
             onPress={handleSave}
             loading={isSaving}
             fullWidth size="lg"
@@ -1386,7 +1388,7 @@ export default function AddTransactionModal() {
               style={[s.deleteBtn, { borderColor: C.danger + '40' }]}
               activeOpacity={0.7}
             >
-              <Text style={[s.deleteBtnText, { color: C.danger }]}>Delete transaction</Text>
+              <Text style={[s.deleteBtnText, { color: C.danger }]}>{tFn('addTransaction.delete')}</Text>
             </TouchableOpacity>
           )}
           <View style={{ height: Spacing[6] }} />
@@ -1416,16 +1418,16 @@ export default function AddTransactionModal() {
                 <View style={s.sheetHandle} />
                 {/* Title */}
                 <View style={{ paddingHorizontal: Spacing[5], paddingBottom: Spacing[1] }}>
-                  <Text style={[s.headerTitle, { color: C.textPrimary, textAlign: 'center' }]}>When is this income for?</Text>
+                  <Text style={[s.headerTitle, { color: C.textPrimary, textAlign: 'center' }]}>{tFn('addTransaction.incomeForTitle')}</Text>
                   <Text style={[{ ...Typography.bodySmall, color: C.textSecondary, textAlign: 'center', marginTop: Spacing[2], lineHeight: 20 }]}>
-                    Choose which month this income should count toward for budgets, analytics and reports.
+                    {tFn('addTransaction.incomeForSub')}
                   </Text>
                 </View>
                 {/* Options */}
                 <View style={{ padding: Spacing[5], gap: Spacing[3] }}>
                   {[
-                    { forNext: false, title: 'This month',  sub: curMonth,                   bg: C.primaryLight,  iconColor: C.primary   },
-                    { forNext: true,  title: 'Next month',  sub: `${nxtMonth} — advance pay`, bg: '#FEF3C720',     iconColor: '#92400E'   },
+                    { forNext: false, title: tFn('addTransaction.thisMonth'),  sub: curMonth,                               bg: C.primaryLight,  iconColor: C.primary   },
+                    { forNext: true,  title: tFn('addTransaction.nextMonth'),  sub: `${nxtMonth} — ${tFn('addTransaction.advancePay')}`, bg: '#FEF3C720', iconColor: '#92400E'   },
                   ].map(({ forNext, title, sub, bg, iconColor }) => (
                     <TouchableOpacity
                       key={String(forNext)}
@@ -1464,7 +1466,7 @@ export default function AddTransactionModal() {
               <View style={[s.deleteConfirmHeader, { backgroundColor: C.dangerLight }]}>
                 <Trash2 size={26} color={C.danger} strokeWidth={1.8} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.deleteConfirmTitle, { color: C.danger }]}>Delete this transaction?</Text>
+                  <Text style={[s.deleteConfirmTitle, { color: C.danger }]}>{tFn('addTransaction.deleteConfirm')}</Text>
                   <Text style={[s.deleteConfirmSub, { color: C.textSecondary }]}>
                     {existing?.note
                       ? `"${existing.note}" · ${formatCurrency(existing?.amount ?? 0, currency)}`
@@ -1473,10 +1475,10 @@ export default function AddTransactionModal() {
                 </View>
               </View>
               <TouchableOpacity onPress={handleDelete} disabled={isDeleting} style={[s.deleteConfirmBtn, { backgroundColor: C.danger }]} activeOpacity={0.8}>
-                <Text style={s.deleteConfirmBtnText}>{isDeleting ? 'Deleting…' : 'Yes, delete it'}</Text>
+                <Text style={s.deleteConfirmBtnText}>{isDeleting ? tFn('addTransaction.deleting') : tFn('addTransaction.deleteConfirmBtn')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowDeleteConfirm(false)} style={[s.deleteCancelBtn, { backgroundColor: C.surfaceRaised }]} activeOpacity={0.7}>
-                <Text style={[s.deleteCancelBtnText, { color: C.textSecondary }]}>Cancel</Text>
+                <Text style={[s.deleteCancelBtnText, { color: C.textSecondary }]}>{tFn('addTransaction.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1520,7 +1522,7 @@ export default function AddTransactionModal() {
             <View style={[s.futureWarnStats, { backgroundColor: C.surfaceRaised, borderColor: C.border }]}>
               <View style={s.futureWarnStat}>
                 <Text style={[s.futureWarnStatLabel, { color: C.textTertiary }]}>
-                  {format(date, 'MMM')} left
+                  {format(date, 'MMM')} {tFn('home.leftShort')}
                 </Text>
                 <Text style={[s.futureWarnStatVal, { color: C.success }]}>
                   {formatCurrency(budgetRemaining, currency)}
@@ -1528,14 +1530,14 @@ export default function AddTransactionModal() {
               </View>
               <View style={[s.futureWarnDivider, { backgroundColor: C.divider }]} />
               <View style={s.futureWarnStat}>
-                <Text style={[s.futureWarnStatLabel, { color: C.textTertiary }]}>Over by</Text>
+                <Text style={[s.futureWarnStatLabel, { color: C.textTertiary }]}>{tFn('addTransaction.overBy')}</Text>
                 <Text style={[s.futureWarnStatVal, { color: '#F59E0B' }]}>
                   {formatCurrency(overBudgetAmount, currency)}
                 </Text>
               </View>
               <View style={[s.futureWarnDivider, { backgroundColor: C.divider }]} />
               <View style={s.futureWarnStat}>
-                <Text style={[s.futureWarnStatLabel, { color: C.textTertiary }]}>This expense</Text>
+                <Text style={[s.futureWarnStatLabel, { color: C.textTertiary }]}>{tFn('addTransaction.thisExpense')}</Text>
                 <Text style={[s.futureWarnStatVal, { color: C.textPrimary }]}>
                   {formatCurrency(typedAmount, currency)}
                 </Text>
@@ -1582,7 +1584,7 @@ export default function AddTransactionModal() {
               >
                 {isSaving
                   ? <ActivityIndicator color="#000" size="small" />
-                  : <Text style={s.futureWarnConfirmText}>Continue anyway</Text>
+                  : <Text style={s.futureWarnConfirmText}>{tFn('addTransaction.continueAnyway')}</Text>
                 }
               </TouchableOpacity>
               <TouchableOpacity
@@ -1590,7 +1592,7 @@ export default function AddTransactionModal() {
                 style={[s.futureWarnCancelBtn, { backgroundColor: C.surfaceRaised }]}
                 activeOpacity={0.7}
               >
-                <Text style={[s.futureWarnCancelText, { color: C.textSecondary }]}>Cancel</Text>
+                <Text style={[s.futureWarnCancelText, { color: C.textSecondary }]}>{tFn('addTransaction.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1615,10 +1617,10 @@ export default function AddTransactionModal() {
               </View>
             </View>
             {([
-              { Icon: Banknote,   iconColor: '#92400E', title: 'I borrowed it',              subtitle: 'From a friend, family or someone else',   label: 'Borrowed money',     tags: ['borrowed', 'debt'] as string[] },
-              { Icon: CreditCard, iconColor: '#1D4ED8', title: 'Credit / Buy now pay later', subtitle: 'Card debt, BNPL or instalment plan',       label: 'Credit / BNPL spend',tags: ['credit', 'debt']   as string[] },
-              { Icon: Landmark,   iconColor: '#065F46', title: 'From another account',       subtitle: 'Savings account, e-wallet or other bank',  label: 'Transfer in',        tags: ['transfer']          as string[] },
-              { Icon: Gift,       iconColor: '#7C3AED', title: 'Gift or money received',     subtitle: 'Cash gift or someone paid on your behalf', label: 'Gift / money received',tags: ['gift']             as string[] },
+              { Icon: Banknote,   iconColor: '#92400E', title: tFn('addTransaction.borrowedTitle'),    subtitle: tFn('addTransaction.borrowedSub'),    label: 'Borrowed money',      tags: ['borrowed', 'debt'] as string[] },
+              { Icon: CreditCard, iconColor: '#1D4ED8', title: tFn('addTransaction.creditTitle'),     subtitle: tFn('addTransaction.creditSub'),     label: 'Credit / BNPL spend', tags: ['credit', 'debt']   as string[] },
+              { Icon: Landmark,   iconColor: '#065F46', title: tFn('addTransaction.anotherAccTitle'), subtitle: tFn('addTransaction.anotherAccSub'), label: 'Transfer in',         tags: ['transfer']          as string[] },
+              { Icon: Gift,       iconColor: '#7C3AED', title: tFn('addTransaction.giftTitle'),       subtitle: tFn('addTransaction.giftSub'),       label: 'Gift / money received',tags: ['gift']             as string[] },
             ]).map(src => (
               <TouchableOpacity
                 key={src.title}
@@ -1640,7 +1642,7 @@ export default function AddTransactionModal() {
             <TouchableOpacity disabled={isSaving} onPress={() => doSave()} style={s.sheetSkip} activeOpacity={0.7}>
               {isSaving
                 ? <ActivityIndicator color={C.textTertiary} />
-                : <Text style={[s.sheetSkipText, { color: C.textTertiary }]}>Just record it — I'll sort it later</Text>
+                : <Text style={[s.sheetSkipText, { color: C.textTertiary }]}>{tFn('addTransaction.justRecordIt')}</Text>
               }
             </TouchableOpacity>
           </View>

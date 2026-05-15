@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { useNotificationStore, DEFAULT_PREFS } from '../../src/stores/notificationStore';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
@@ -16,6 +17,7 @@ import type { LucideIcon } from 'lucide-react-native';
 
 export default function NotificationSettingsScreen() {
   const C             = useTheme();
+  const { t }         = useTranslation();
   const { prefs, updateCategory, resetPrefs, clearDismissed, load } = useNotificationStore();
   const [saveAnim, setSaveAnim] = useState(false);
 
@@ -53,7 +55,7 @@ export default function NotificationSettingsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <X size={16} color={C.primary} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>Smart Insights</Text>
+          <Text style={[styles.headerTitle, { color: C.textPrimary }]}>{t('notifications.title')}</Text>
           <View style={{ width: 36 }} />
         </View>
 
@@ -67,22 +69,22 @@ export default function NotificationSettingsScreen() {
           <View style={[styles.infoBanner, { backgroundColor: C.primaryLight }]}>
             <Info size={16} color={C.primary} strokeWidth={2} />
             <Text style={[styles.infoText, { color: C.primary }]}>
-              Insights are friendly, non-stressful nudges to help you stay on top of your finances.
+              {t('notifications.infoBanner')}
             </Text>
           </View>
 
           {/* ── 1. Financial Awareness ───────────────────────── */}
           <Section
             Icon={BarChart2}
-            title="Financial Awareness"
-            subtitle="Track spending habits and unusual activity"
+            title={t('notifications.financialAwareness')}
+            subtitle={t('notifications.financialAwarenessSub')}
             enabled={prefs.financialAwareness.enabled}
             onToggle={v => toggle('financialAwareness', 'enabled', v)}
             C={C}
           >
             <Toggle
-              label="Spending habit tracking"
-              description="Get notified when a category spends significantly more than last month"
+              label={t('notifications.spendingHabits')}
+              description={t('notifications.spendingHabitsSub')}
               value={prefs.financialAwareness.spendingHabits}
               disabled={!prefs.financialAwareness.enabled}
               onChange={v => toggle('financialAwareness', 'spendingHabits', v)}
@@ -90,8 +92,8 @@ export default function NotificationSettingsScreen() {
             />
             <Divider C={C} />
             <Toggle
-              label="Unusual spending alerts"
-              description="Alert when one category dominates your total spending"
+              label={t('notifications.unusualSpending')}
+              description={t('notifications.unusualSpendingSub')}
               value={prefs.financialAwareness.unusualSpending}
               disabled={!prefs.financialAwareness.enabled}
               onChange={v => toggle('financialAwareness', 'unusualSpending', v)}
@@ -99,8 +101,8 @@ export default function NotificationSettingsScreen() {
             />
             <Divider C={C} />
             <Toggle
-              label="Large purchase alerts"
-              description="Get a heads-up when a single expense is unusually large"
+              label={t('notifications.largePurchase')}
+              description={t('notifications.largePurchaseSub')}
               value={prefs.financialAwareness.largePurchase}
               disabled={!prefs.financialAwareness.enabled}
               onChange={v => toggle('financialAwareness', 'largePurchase', v)}
@@ -108,7 +110,7 @@ export default function NotificationSettingsScreen() {
             />
             {prefs.financialAwareness.largePurchase && prefs.financialAwareness.enabled && (
               <ThresholdInput
-                label="Large purchase threshold"
+                label={t('notifications.largePurchaseThreshold')}
                 value={prefs.financialAwareness.largePurchaseThreshold.toString()}
                 onChangeText={v => setThreshold('financialAwareness', 'largePurchaseThreshold', v)}
                 C={C}
@@ -119,15 +121,15 @@ export default function NotificationSettingsScreen() {
           {/* ── 2. Budget Control ────────────────────────────── */}
           <Section
             Icon={Target}
-            title="Budget Control"
-            subtitle="Stay aware of budget limits before you hit them"
+            title={t('notifications.budgetControl')}
+            subtitle={t('notifications.budgetControlSub')}
             enabled={prefs.budgetControl.enabled}
             onToggle={v => toggle('budgetControl', 'enabled', v)}
             C={C}
           >
             <Toggle
-              label="Category spending alerts"
-              description="Warn when you're close to or over a category budget"
+              label={t('notifications.categoryAlerts')}
+              description={t('notifications.categoryAlertsSub')}
               value={prefs.budgetControl.categoryAlerts}
               disabled={!prefs.budgetControl.enabled}
               onChange={v => toggle('budgetControl', 'categoryAlerts', v)}
@@ -135,7 +137,7 @@ export default function NotificationSettingsScreen() {
             />
             {prefs.budgetControl.enabled && (
               <ThresholdInput
-                label="Warn me when budget reaches"
+                label={t('notifications.warnAt')}
                 value={prefs.budgetControl.warningAt.toString()}
                 suffix="%"
                 onChangeText={v => setThreshold('budgetControl', 'warningAt', v)}
@@ -147,15 +149,15 @@ export default function NotificationSettingsScreen() {
           {/* ── 3. Account Protection ────────────────────────── */}
           <Section
             Icon={Shield}
-            title="Account Protection"
-            subtitle="Prevent surprises before they happen"
+            title={t('notifications.accountProtection')}
+            subtitle={t('notifications.accountProtectionSub')}
             enabled={prefs.accountProtection.enabled}
             onToggle={v => toggle('accountProtection', 'enabled', v)}
             C={C}
           >
             <Toggle
-              label="Low balance alerts"
-              description="Friendly reminder when your available balance is getting low"
+              label={t('notifications.lowBalance')}
+              description={t('notifications.lowBalanceSub')}
               value={prefs.accountProtection.lowBalance}
               disabled={!prefs.accountProtection.enabled}
               onChange={v => toggle('accountProtection', 'lowBalance', v)}
@@ -163,7 +165,7 @@ export default function NotificationSettingsScreen() {
             />
             {prefs.accountProtection.lowBalance && prefs.accountProtection.enabled && (
               <ThresholdInput
-                label="Low balance threshold"
+                label={t('notifications.lowBalanceThreshold')}
                 value={prefs.accountProtection.lowBalanceThreshold.toString()}
                 onChangeText={v => setThreshold('accountProtection', 'lowBalanceThreshold', v)}
                 C={C}
@@ -171,8 +173,8 @@ export default function NotificationSettingsScreen() {
             )}
             <Divider C={C} />
             <Toggle
-              label="Overdraft risk warning"
-              description="Alert when spending has exceeded your available income"
+              label={t('notifications.overdraftRisk')}
+              description={t('notifications.overdraftRiskSub')}
               value={prefs.accountProtection.overdraftRisk}
               disabled={!prefs.accountProtection.enabled}
               onChange={v => toggle('accountProtection', 'overdraftRisk', v)}
@@ -180,8 +182,8 @@ export default function NotificationSettingsScreen() {
             />
             <Divider C={C} />
             <Toggle
-              label="Upcoming bill reminders"
-              description="Remind you when recurring bills may exceed your balance"
+              label={t('notifications.billReminders')}
+              description={t('notifications.billRemindersSub')}
               value={prefs.accountProtection.billReminders}
               disabled={!prefs.accountProtection.enabled}
               onChange={v => toggle('accountProtection', 'billReminders', v)}
@@ -192,15 +194,15 @@ export default function NotificationSettingsScreen() {
           {/* ── 4. Motivation & Goals ────────────────────────── */}
           <Section
             Icon={Sparkles}
-            title="Motivation & Goals"
-            subtitle="Celebrate progress and stay encouraged"
+            title={t('notifications.motivation')}
+            subtitle={t('notifications.motivationSub')}
             enabled={prefs.motivation.enabled}
             onToggle={v => toggle('motivation', 'enabled', v)}
             C={C}
           >
             <Toggle
-              label="Savings goal progress"
-              description="Celebrate milestones as you save towards your goals"
+              label={t('notifications.goalProgress')}
+              description={t('notifications.goalProgressSub')}
               value={prefs.motivation.goalProgress}
               disabled={!prefs.motivation.enabled}
               onChange={v => toggle('motivation', 'goalProgress', v)}
@@ -208,8 +210,8 @@ export default function NotificationSettingsScreen() {
             />
             <Divider C={C} />
             <Toggle
-              label="Monthly improvement insights"
-              description="See how your spending compares to last month"
+              label={t('notifications.monthlyComparison')}
+              description={t('notifications.monthlyComparisonSub')}
               value={prefs.motivation.monthlyComparison}
               disabled={!prefs.motivation.enabled}
               onChange={v => toggle('motivation', 'monthlyComparison', v)}
@@ -217,8 +219,8 @@ export default function NotificationSettingsScreen() {
             />
             <Divider C={C} />
             <Toggle
-              label="Positive reinforcement"
-              description="Daily motivational nudges to keep you on track"
+              label={t('notifications.positiveReinforcement')}
+              description={t('notifications.positiveReinforcementSub')}
               value={prefs.motivation.positiveReinforcement}
               disabled={!prefs.motivation.enabled}
               onChange={v => toggle('motivation', 'positiveReinforcement', v)}
@@ -232,23 +234,17 @@ export default function NotificationSettingsScreen() {
               <View style={styles.sectionTitleRow}>
                 <View style={styles.sectionIconWrap}><Bell size={16} color={C.textSecondary} strokeWidth={2} /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Push Notifications</Text>
-                  <Text style={[styles.sectionSubtitle, { color: C.textTertiary }]}>Receive insights even when the app is closed</Text>
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('notifications.pushTitle')}</Text>
+                  <Text style={[styles.sectionSubtitle, { color: C.textTertiary }]}>{t('notifications.pushSub')}</Text>
                 </View>
                 <View style={[styles.comingSoonBadge, { backgroundColor: C.primaryLight }]}>
-                  <Text style={[styles.comingSoonText, { color: C.primary }]}>Soon</Text>
+                  <Text style={[styles.comingSoonText, { color: C.primary }]}>{t('notifications.comingSoon')}</Text>
                 </View>
               </View>
             </View>
             <View style={styles.sectionBody}>
               <Text style={[styles.pushNote, { color: C.textTertiary }]}>
-                Push notifications require{' '}
-                <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>expo-notifications</Text>
-                {' '}to be installed.{'\n\n'}Run{' '}
-                <Text style={{ fontFamily: 'monospace', fontSize: 12, color: C.primary }}>
-                  npx expo install expo-notifications
-                </Text>
-                {'\n'}to enable this feature.
+                {t('notifications.pushNote')}
               </Text>
             </View>
           </View>
@@ -259,7 +255,7 @@ export default function NotificationSettingsScreen() {
               onPress={clearDismissed}
               style={[styles.secondaryBtn, { backgroundColor: C.surface, borderColor: C.border }]}
             >
-              <Text style={[styles.secondaryBtnText, { color: C.textSecondary }]}>Restore dismissed insights</Text>
+              <Text style={[styles.secondaryBtnText, { color: C.textSecondary }]}>{t('notifications.restoreDismissed')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleReset}
@@ -268,7 +264,7 @@ export default function NotificationSettingsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 {saveAnim && <Check size={13} color={C.danger} strokeWidth={2.5} />}
                 <Text style={[styles.secondaryBtnText, { color: C.danger }]}>
-                  {saveAnim ? 'Reset to defaults' : 'Reset all settings to defaults'}
+                  {saveAnim ? t('notifications.resetDone') : t('notifications.resetAll')}
                 </Text>
               </View>
             </TouchableOpacity>

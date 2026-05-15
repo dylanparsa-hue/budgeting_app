@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput, Modal,
+  KeyboardAvoidingView, Platform, TextInput, Modal, I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
+import { useTranslation } from 'react-i18next';
 import { useDebtStore }  from '../../src/stores/debtStore';
 import { Button }        from '../../src/components/ui/Button';
 import { useTheme }      from '../../src/theme/ThemeContext';
@@ -18,6 +19,7 @@ import { CreditCard } from 'lucide-react-native';
 
 export default function AddDebtModal() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { debts, add, edit, remove } = useDebtStore();
   const { profile } = useAuthStore();
@@ -100,7 +102,7 @@ export default function AddDebtModal() {
             <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
-            {isEditing ? 'Edit Debt' : 'Track a Debt'}
+            {isEditing ? t('addDebt.titleEdit') : t('addDebt.titleAdd')}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -115,21 +117,21 @@ export default function AddDebtModal() {
             </View>
           ) : null}
 
-          <Field label="What is this debt for?" C={C}>
+          <Field label={t('addDebt.debtFor')} C={C}>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Car loan, Credit card..."
+              placeholder={t('addDebt.debtForPlaceholder')}
               placeholderTextColor={C.textTertiary}
               style={[styles.input, { color: C.textPrimary, backgroundColor: C.surfaceRaised, borderColor: C.border }]}
             />
           </Field>
 
-          <Field label="Who do you owe?" C={C}>
+          <Field label={t('addDebt.whoDoYouOwe')} C={C}>
             <TextInput
               value={lender}
               onChangeText={setLender}
-              placeholder="e.g. Bank, Friend, Finance company..."
+              placeholder={t('addDebt.lenderPlaceholder')}
               placeholderTextColor={C.textTertiary}
               style={[styles.input, { color: C.textPrimary, backgroundColor: C.surfaceRaised, borderColor: C.border }]}
             />
@@ -137,7 +139,7 @@ export default function AddDebtModal() {
 
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Field label="Total amount" C={C}>
+              <Field label={t('addDebt.totalAmount')} C={C}>
                 <View style={[styles.inputPrefixRow, { backgroundColor: C.surfaceRaised, borderColor: C.border }]}>
                   <Text style={[styles.inputPrefix, { color: C.textTertiary }]}>{currency === 'MYR' ? 'RM' : currency}</Text>
                   <TextInput
@@ -152,7 +154,7 @@ export default function AddDebtModal() {
               </Field>
             </View>
             <View style={{ flex: 1 }}>
-              <Field label="Already paid" C={C}>
+              <Field label={t('addDebt.amountPaid')} C={C}>
                 <View style={[styles.inputPrefixRow, { backgroundColor: C.surfaceRaised, borderColor: C.border }]}>
                   <Text style={[styles.inputPrefix, { color: C.textTertiary }]}>{currency === 'MYR' ? 'RM' : currency}</Text>
                   <TextInput
@@ -168,7 +170,7 @@ export default function AddDebtModal() {
             </View>
           </View>
 
-          <Field label="Due date (YYYY-MM-DD)" sublabel="Optional — used for time priority" C={C}>
+          <Field label={t('addDebt.dueDate')} sublabel={t('addDebt.dueDateSublabel')} C={C}>
             <TextInput
               value={dueDate}
               onChangeText={setDueDate}
@@ -182,7 +184,7 @@ export default function AddDebtModal() {
 
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Field label="Interest rate %" sublabel="Optional" C={C}>
+              <Field label={t('addDebt.interestRate')} sublabel={t('addDebt.optional')} C={C}>
                 <TextInput
                   value={interestStr}
                   onChangeText={setInterestStr}
@@ -195,11 +197,11 @@ export default function AddDebtModal() {
             </View>
           </View>
 
-          <Field label="Notes" sublabel="Optional" C={C}>
+          <Field label={t('addDebt.notes')} sublabel={t('addDebt.optional')} C={C}>
             <TextInput
               value={notes}
               onChangeText={setNotes}
-              placeholder="Any extra details..."
+              placeholder={t('addDebt.notesPlaceholder')}
               placeholderTextColor={C.textTertiary}
               multiline
               numberOfLines={3}
@@ -208,7 +210,7 @@ export default function AddDebtModal() {
           </Field>
 
           <Button
-            label={isSaving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Track Debt')}
+            label={isSaving ? t('finances.saving') : (isEditing ? t('addDebt.saveChanges') : t('addDebt.trackDebt'))}
             onPress={handleSave}
             loading={isSaving}
             fullWidth
@@ -224,7 +226,7 @@ export default function AddDebtModal() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={16} color={C.danger} strokeWidth={2} />
-                <Text style={[styles.deleteBtnText, { color: C.danger }]}>Delete debt</Text>
+                <Text style={[styles.deleteBtnText, { color: C.danger }]}>{t('addDebt.delete')}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -239,24 +241,23 @@ export default function AddDebtModal() {
             <View style={[styles.deleteIconBox, { backgroundColor: C.dangerLight }]}>
               <CreditCard size={28} color={C.danger} strokeWidth={2} />
             </View>
-            <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>Remove Debt?</Text>
+            <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>{t('addDebt.deleteConfirm')}</Text>
             <Text style={[styles.deleteModalBody, { color: C.textSecondary }]}>
-              This will remove{' '}
-              <Text style={{ fontWeight: '700', color: C.textPrimary }}>{existing?.name}</Text>
-              {' '}from your debt tracker.
+              {t('addDebt.deleteMsg')}{' '}
+              <Text style={{ fontWeight: '700', color: C.textPrimary }}>{existing?.name}</Text>.
             </Text>
             <TouchableOpacity
               onPress={handleDelete}
               disabled={isDeleting}
               style={[styles.deleteConfirmBtn, { backgroundColor: C.danger }]}
             >
-              <Text style={styles.deleteConfirmBtnText}>{isDeleting ? 'Removing…' : 'Yes, remove it'}</Text>
+              <Text style={styles.deleteConfirmBtnText}>{isDeleting ? t('addDebt.removing') : t('addDebt.deleteConfirmBtn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowDelete(false)}
               style={[styles.deleteCancelBtn, { backgroundColor: C.surfaceRaised }]}
             >
-              <Text style={[styles.deleteCancelBtnText, { color: C.textPrimary }]}>Cancel</Text>
+              <Text style={[styles.deleteCancelBtnText, { color: C.textPrimary }]}>{t('addDebt.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg, borderWidth: 1,
     paddingHorizontal: Spacing[3.5], paddingVertical: Spacing[3],
     ...Typography.bodyMedium,
+    textAlign: (I18nManager.isRTL ? 'right' : 'left') as 'right' | 'left',
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   inputPrefixRow: {

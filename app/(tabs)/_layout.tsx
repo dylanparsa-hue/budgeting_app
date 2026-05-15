@@ -8,12 +8,13 @@ import { router } from 'expo-router';
 import { House, BarChart2, Wallet, User, Plus } from 'lucide-react-native';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
+import { useTranslation } from 'react-i18next';
 
-const TABS = [
-  { name: 'index',   label: 'Home',     Icon: House    },
-  { name: 'budgets', label: 'Insights', Icon: BarChart2 },
-  { name: 'goals',   label: 'Finances', Icon: Wallet   },
-  { name: 'profile', label: 'Account',  Icon: User     },
+const TAB_DEFS = [
+  { name: 'index',   labelKey: 'nav.home',     Icon: House    },
+  { name: 'budgets', labelKey: 'nav.insights', Icon: BarChart2 },
+  { name: 'goals',   labelKey: 'nav.finances', Icon: Wallet   },
+  { name: 'profile', labelKey: 'nav.account',  Icon: User     },
 ];
 
 function TabButton({
@@ -61,11 +62,12 @@ function TabButton({
   );
 }
 
-const LEFT_TABS  = [TABS[0], TABS[1]]; // Home, Insights
-const RIGHT_TABS = [TABS[2], TABS[3]]; // Finances, Account
+const LEFT_TABS  = [TAB_DEFS[0], TAB_DEFS[1]]; // Home, Insights
+const RIGHT_TABS = [TAB_DEFS[2], TAB_DEFS[3]]; // Finances, Account
 
 function CustomTabBar({ state, navigation }: any) {
   const C      = useTheme();
+  const { t }  = useTranslation();
   const sw     = Dimensions.get('window').width;
   const BAR    = sw - 32;
   const FAB_W  = 64;
@@ -75,10 +77,10 @@ function CustomTabBar({ state, navigation }: any) {
   const bottom = Platform.OS === 'ios' ? 28 : 16;
   const barBg  = C.isDark ? C.surface : '#FFFFFF';
 
-  const makeTabBtn = (tab: typeof TABS[0], i: number) => (
+  const makeTabBtn = (tab: typeof TAB_DEFS[0], i: number) => (
     <TabButton
       key={tab.name}
-      label={tab.label}
+      label={t(tab.labelKey)}
       focused={state.index === i}
       tabWidth={TW}
       Icon={tab.Icon}

@@ -30,6 +30,7 @@ import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import { formatCurrency }     from '../../src/utils/currency';
 import { Pencil, Trash2, X, FileText, BarChart2 } from 'lucide-react-native';
 import { BILL_META } from '../../src/lib/icons';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -41,21 +42,20 @@ function toMonthly(amount: number, freq: string) {
   return amount;
 }
 
-// Labels for manage-recurring (slightly different wording than BILL_META)
-const CAT_LABEL: Record<string, string> = {
-  rent:         'Rent / Mortgage',
-  utilities:    'Utilities / Bills',
-  subscription: 'Subscriptions',
-  debt:         'Debt / Loans',
-  insurance:    'Insurance',
-  transport:    'Transport',
-  other:        'Other',
+const CAT_KEY: Record<string, string> = {
+  rent:         'addRecurring.catRent',
+  utilities:    'addRecurring.catUtilities',
+  subscription: 'addRecurring.catSubscription',
+  debt:         'addRecurring.catDebt',
+  insurance:    'addRecurring.catInsurance',
+  transport:    'addRecurring.catTransport',
+  other:        'addRecurring.catOther',
 };
 
-const FREQ_LABEL: Record<string, string> = {
-  monthly: 'Monthly',
-  weekly:  'Weekly',
-  yearly:  'Yearly',
+const FREQ_KEY: Record<string, string> = {
+  monthly: 'addRecurring.monthly',
+  weekly:  'addRecurring.weekly',
+  yearly:  'addRecurring.yearly',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,18 +74,19 @@ function RecurringRow({
   onDelete: () => void;
 }) {
   const C      = useTheme();
+  const { t }  = useTranslation();
   const meta   = BILL_META[item.category] ?? BILL_META.other;
-  const catLabel = CAT_LABEL[item.category] ?? CAT_LABEL.other;
+  const catLabel = t(CAT_KEY[item.category] ?? CAT_KEY.other);
   const RowIcon = meta.Icon;
   const monthly = toMonthly(item.amount, item.frequency);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const confirmDelete = () => {
     Alert.alert(
-      'Delete bill',
-      `Remove "${item.name}" from your recurring expenses?`,
+      t('manageRecurring.deleteBillTitle'),
+      t('manageRecurring.deleteBillMsg', { name: item.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('addRecurring.cancel'), style: 'cancel' },
         {
           text: 'Delete', style: 'destructive',
           onPress: () => {
@@ -112,7 +113,7 @@ function RecurringRow({
             {item.name}
           </Text>
           <Text style={[S.rowMeta, { color: C.textTertiary }]}>
-            {catLabel} · {FREQ_LABEL[item.frequency]}
+            {catLabel} · {t(FREQ_KEY[item.frequency] ?? FREQ_KEY.monthly)}
           </Text>
         </View>
 
@@ -156,6 +157,7 @@ function RecurringRow({
 
 export default function ManageRecurringModal() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { profile } = useAuthStore();
   const { items, loaded, load, remove } = useRecurringStore();
   const currency = profile?.currency ?? 'MYR';
@@ -203,12 +205,12 @@ export default function ManageRecurringModal() {
         >
           <X size={16} color={C.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={[S.headerTitle, { color: C.textPrimary }]}>Fixed Expenses</Text>
+        <Text style={[S.headerTitle, { color: C.textPrimary }]}>{t('manageRecurring.title')}</Text>
         <TouchableOpacity
           onPress={() => router.push('/modals/add-recurring' as any)}
           style={[S.addBtn, { backgroundColor: C.primary }]}
         >
-          <Text style={S.addBtnText}>+ Add</Text>
+          <Text style={S.addBtnText}>{t('manageRecurring.addNew')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -222,9 +224,9 @@ export default function ManageRecurringModal() {
         >
           <View style={S.summaryBg1} />
           <View style={S.summaryBg2} />
-          <Text style={S.summaryLabel}>TOTAL MONTHLY OBLIGATIONS</Text>
+          <Text style={S.summaryLabel}>{t('manageRecurring.totalLabel')}</Text>
           <Text style={S.summaryAmount}>{formatCurrency(billsTotal, currency)}</Text>
-          <Text style={S.summarySubtitle}>{items.length} recurring expense{items.length !== 1 ? 's' : ''}</Text>
+          <Text style={S.summarySubtitle}>{t('manageRecurring.recurringCount', { count: items.length })}</Text>
         </LinearGradient>
       )}
 
@@ -232,15 +234,13 @@ export default function ManageRecurringModal() {
       {items.length === 0 ? (
         <View style={S.emptyWrap}>
           <FileText size={48} color={C.textTertiary} strokeWidth={1.5} />
-          <Text style={[S.emptyTitle, { color: C.textPrimary }]}>No fixed expenses yet</Text>
-          <Text style={[S.emptySub, { color: C.textTertiary }]}>
-            Add rent, bills, subscriptions and loans so the app can calculate your true available balance.
-          </Text>
+          <Text style={[S.emptyTitle, { color: C.textPrimary }]}>{t('manageRecurring.empty')}</Text>
+          <Text style={[S.emptySub, { color: C.textTertiary }]}>{t('manageRecurring.emptySub')}</Text>
           <TouchableOpacity
             onPress={() => router.push('/modals/add-recurring' as any)}
             style={[S.emptyBtn, { backgroundColor: C.primary }]}
           >
-            <Text style={S.emptyBtnText}>Add first bill</Text>
+            <Text style={S.emptyBtnText}>{t('manageRecurring.addFirstBill')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -250,7 +250,7 @@ export default function ManageRecurringModal() {
         >
           {grouped.map(([cat, catItems]) => {
             const meta      = BILL_META[cat] ?? BILL_META.other;
-            const catLabel  = CAT_LABEL[cat] ?? CAT_LABEL.other;
+            const catLabel  = t(CAT_KEY[cat] ?? CAT_KEY.other);
             const catTotal  = catItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
             return (
               <View key={cat} style={S.group}>
@@ -283,10 +283,10 @@ export default function ManageRecurringModal() {
 
           {/* Bottom summary breakdown */}
           <View style={[S.breakdown, { backgroundColor: C.surface }]}>
-            <Text style={[S.breakdownTitle, { color: C.textPrimary }]}>Monthly breakdown</Text>
+            <Text style={[S.breakdownTitle, { color: C.textPrimary }]}>{t('manageRecurring.monthlyBreakdown')}</Text>
             {grouped.map(([cat, catItems]) => {
               const meta     = BILL_META[cat] ?? BILL_META.other;
-              const bLabel   = CAT_LABEL[cat] ?? CAT_LABEL.other;
+              const bLabel   = t(CAT_KEY[cat] ?? CAT_KEY.other);
               const BIcon    = meta.Icon;
               const catTotal = catItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
               const pct      = billsTotal > 0 ? (catTotal / billsTotal) * 100 : 0;
@@ -310,7 +310,7 @@ export default function ManageRecurringModal() {
               <View style={S.breakdownIconWrap}>
                 <BarChart2 size={14} color={C.danger} strokeWidth={2} />
               </View>
-              <Text style={[S.breakdownLabel, { color: C.textPrimary, fontWeight: '700' }]}>Total</Text>
+              <Text style={[S.breakdownLabel, { color: C.textPrimary, fontWeight: '700' }]}>{t('finances.total')}</Text>
               <View style={S.breakdownBarTrack} />
               <Text style={[S.breakdownPct, { color: C.danger, fontWeight: '800' }]}>
                 {formatCurrency(billsTotal, currency)}

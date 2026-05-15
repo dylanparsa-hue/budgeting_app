@@ -9,6 +9,7 @@ import { ProgressBar } from '../ui/ProgressBar';
 import { CATEGORY_ICON, Pencil, Trash2 } from '../../lib/icons';
 import type { LucideIcon } from 'lucide-react-native';
 import { Package } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 interface BudgetCardProps {
   budget:    Budget;
@@ -20,6 +21,7 @@ interface BudgetCardProps {
 
 export function BudgetCard({ budget, spent, currency = 'MYR', onEdit, onDelete }: BudgetCardProps) {
   const C = useTheme();
+  const { t } = useTranslation();
   const { category, amount } = budget;
   const pct       = Math.min((spent / amount) * 100, 100);
   const remaining = Math.max(amount - spent, 0);
@@ -38,7 +40,7 @@ export function BudgetCard({ budget, spent, currency = 'MYR', onEdit, onDelete }
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.catName, { color: C.textPrimary }]}>{category?.name ?? 'Budget'}</Text>
-          <Text style={[styles.period, { color: C.textTertiary }]}>Monthly</Text>
+          <Text style={[styles.period, { color: C.textTertiary }]}>{t('addRecurring.monthly')}</Text>
         </View>
         <View style={styles.amounts}>
           <Text style={[styles.spentAmount, { color: isOver ? C.danger : C.textPrimary }]}>
@@ -73,11 +75,11 @@ export function BudgetCard({ budget, spent, currency = 'MYR', onEdit, onDelete }
       <View style={styles.footer}>
         {isOver ? (
           <Text style={[styles.remainingText, { color: C.danger }]}>
-            Over budget by {formatCurrency(spent - amount, currency)}
+            {t('home.overBudgetBy', { amount: formatCurrency(spent - amount, currency) })}
           </Text>
         ) : (
           <Text style={[styles.remainingText, { color: C.textSecondary }]}>
-            {formatCurrency(remaining, currency)} remaining
+            {formatCurrency(remaining, currency)} {t('home.remaining')}
           </Text>
         )}
         <Text style={[styles.pct, { color: pct >= 90 ? C.danger : C.textTertiary }]}>

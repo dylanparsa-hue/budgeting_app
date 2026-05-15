@@ -10,6 +10,7 @@ import {
   View, Text, ScrollView, StyleSheet,
   RefreshControl, TouchableOpacity,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView }   from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router }         from 'expo-router';
@@ -50,11 +51,11 @@ function shift(month: number, year: number, d: number) {
   return { month: m, year: y };
 }
 
-function greeting() {
+function greeting(t: (key: string) => string) {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return t('home.goodMorning');
+  if (h < 17) return t('home.goodAfternoon');
+  return t('home.goodEvening');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +109,7 @@ function RecentTxRow({
 }: {
   tx: any; C: any; currency: string; categories: any[]; isLast: boolean;
 }) {
+  const { t } = useTranslation();
   const cat      = categories.find((c: any) => c.id === tx.category_id);
   const IconComp = cat ? (CATEGORY_ICON[cat.name?.toLowerCase()] ?? Package) : Package;
   const catColor = cat?.color ?? C.primary;
@@ -131,7 +133,7 @@ function RecentTxRow({
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ ...Typography.titleSmall, color: C.textPrimary }} numberOfLines={1}>
-          {tx.note || cat?.name || 'Transaction'}
+          {tx.note || cat?.name || t('home.transaction')}
         </Text>
         <Text style={{ ...Typography.bodySmall, color: C.textTertiary }}>
           {cat?.name ?? ''} · {format(new Date(tx.date), 'MMM d')}
@@ -154,6 +156,7 @@ function RecentTxRow({
 
 export default function HomeScreen() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { profile, user }                               = useAuthStore();
   const { transactions, syncFromServer, loadFromCache, categories } = useTransactionStore();
   const { budgets, loadBudgets, removeBudget } = useBudgetStore();
@@ -362,7 +365,7 @@ export default function HomeScreen() {
         {/* ════════ Flat header ════════ */}
         <View style={S.header}>
           <View>
-            <Text style={[S.headerGreeting, { color: C.textSecondary }]}>{greeting()}</Text>
+            <Text style={[S.headerGreeting, { color: C.textSecondary }]}>{greeting(t)}</Text>
             <Text style={[S.headerName, { color: C.textPrimary }]}>{firstName}</Text>
           </View>
           <TouchableOpacity
@@ -389,7 +392,7 @@ export default function HomeScreen() {
 
           {/* Top row: label + W badge */}
           <View style={S.heroTopRow}>
-            <Text style={S.heroLabel}>AVAILABLE CASH</Text>
+            <Text style={S.heroLabel}>{t('home.availableCash')}</Text>
             <View style={S.wBadge}>
               <Text style={S.wBadgeText}>W</Text>
             </View>
@@ -405,21 +408,21 @@ export default function HomeScreen() {
 
           {/* This month's budget breakdown — 3-col grid */}
           <View style={S.heroBudgetRow}>
-            <Text style={S.heroBudgetMonthLabel}>{format(NOW, 'MMMM')} budget</Text>
+            <Text style={S.heroBudgetMonthLabel}>{format(NOW, 'MMMM')} {t('home.budget')}</Text>
             <View style={S.heroBudgetStatRow}>
               <View style={S.heroBudgetStat}>
-                <Text style={S.heroBudgetStatLabel}>In</Text>
+                <Text style={S.heroBudgetStatLabel}>{t('home.in')}</Text>
                 <Text style={S.heroBudgetStatVal}>{formatCurrency(curIncome, currency)}</Text>
               </View>
               <View style={S.heroBudgetStatDivider} />
               <View style={S.heroBudgetStat}>
-                <Text style={S.heroBudgetStatLabel}>Out</Text>
+                <Text style={S.heroBudgetStatLabel}>{t('home.out')}</Text>
                 <Text style={S.heroBudgetStatVal}>{formatCurrency(curSpend, currency)}</Text>
               </View>
               <View style={S.heroBudgetStatDivider} />
               <View style={S.heroBudgetStat}>
                 <Text style={S.heroBudgetStatLabel}>
-                  {monthBudgetBalance >= 0 ? 'Left' : 'Over'}
+                  {monthBudgetBalance >= 0 ? t('home.left') : t('home.over')}
                 </Text>
                 <Text style={[S.heroBudgetStatVal, {
                   color: monthBudgetBalance >= 0 ? '#9FE870' : '#FF6B6B',
@@ -441,7 +444,7 @@ export default function HomeScreen() {
           {futureBudgetMonths.map(m => (
             <View key={m.key} style={S.futureReservedPill}>
               <Text style={S.futureReservedText}>
-                {formatCurrency(m.net, currency)} · {m.label} budget · received early
+                {formatCurrency(m.net, currency)} · {m.label} {t('home.budget')} · {t('home.receivedEarly')}
               </Text>
             </View>
           ))}
@@ -449,19 +452,19 @@ export default function HomeScreen() {
           {/* Quick action chips */}
           <View style={S.heroChips}>
             {[
-              { Icon: Plus,        label: 'Add',          onPress: () => router.push('/modals/add-transaction') },
-              { Icon: TrendingUp,  label: 'Transactions', onPress: () => router.push('/(tabs)/transactions' as any) },
-              { Icon: Sparkles,    label: 'Insights',     onPress: () => router.push('/(tabs)/budgets') },
-              { Icon: Wallet,      label: 'Finances',     onPress: () => router.push('/(tabs)/goals') },
-            ].map(({ Icon, label, onPress }) => (
+              { Icon: Plus,        labelKey: 'home.chipAdd',          onPress: () => router.push('/modals/add-transaction') },
+              { Icon: TrendingUp,  labelKey: 'home.chipTransactions', onPress: () => router.push('/(tabs)/transactions' as any) },
+              { Icon: Sparkles,    labelKey: 'home.chipInsights',     onPress: () => router.push('/(tabs)/budgets') },
+              { Icon: Wallet,      labelKey: 'home.chipFinances',     onPress: () => router.push('/(tabs)/goals') },
+            ].map(({ Icon, labelKey, onPress }) => (
               <TouchableOpacity
-                key={label}
+                key={labelKey}
                 onPress={onPress}
                 style={S.heroChip}
                 activeOpacity={0.75}
               >
                 <Icon size={18} color="#fff" strokeWidth={2} />
-                <Text style={S.heroChipLabel}>{label}</Text>
+                <Text style={S.heroChipLabel}>{t(labelKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -476,7 +479,7 @@ export default function HomeScreen() {
             return (
               <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
                 <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>
-                  {format(NOW, 'MMMM')} budget
+                  {format(NOW, 'MMMM')} {t('home.budget')}
                 </Text>
                 <Text
                   style={[S.miniCardAmt, { color }]}
@@ -488,8 +491,8 @@ export default function HomeScreen() {
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <Text style={[S.miniCardDelta, { color: C.textTertiary }]}>
-                    {remaining >= 0 ? 'remaining' : 'over budget'}
-                    {spendDelta !== null && ` · ${spendDelta >= 0 ? '↑' : '↓'}${Math.abs(Math.round(spendDelta))}% spend`}
+                    {remaining >= 0 ? t('home.remaining') : t('home.overBudget')}
+                    {spendDelta !== null && ` · ${spendDelta >= 0 ? '↑' : '↓'}${Math.abs(Math.round(spendDelta))}% ${t('home.spendDelta')}`}
                   </Text>
                 </View>
               </View>
@@ -499,7 +502,7 @@ export default function HomeScreen() {
           {/* Future-month assigned income (one row per month) or goals if none */}
           {futureBudgetMonths.length > 0 ? (
             <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
-              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Future budget</Text>
+              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>{t('home.futureBudget')}</Text>
               <Text
                 style={[S.miniCardAmt, { color: '#F59E0B' }]}
                 adjustsFontSizeToFit
@@ -510,13 +513,13 @@ export default function HomeScreen() {
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                 <Text style={[S.miniCardDelta, { color: C.textTertiary }]}>
-                  {futureBudgetMonths.map(m => m.label).join(' · ')} · received early
+                  {futureBudgetMonths.map(m => m.label).join(' · ')} · {t('home.receivedEarly')}
                 </Text>
               </View>
             </View>
           ) : (
             <View style={[S.miniCard, { backgroundColor: C.surface }, Shadow.sm]}>
-              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>Saved this month</Text>
+              <Text style={[S.miniCardLabel, { color: C.textSecondary }]}>{t('home.savedThisMonth')}</Text>
               <Text
                 style={[S.miniCardAmt, { color: C.textPrimary }]}
                 adjustsFontSizeToFit
@@ -528,7 +531,7 @@ export default function HomeScreen() {
               {allActive.length > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <Text style={[S.miniCardDelta, { color: C.success }]}>
-                    {allActive.length} active goal{allActive.length !== 1 ? 's' : ''}
+                    {allActive.length} {t('home.activeGoal', { count: allActive.length })}
                   </Text>
                 </View>
               )}
@@ -538,9 +541,9 @@ export default function HomeScreen() {
 
         {/* ════════ My Budgets ════════ */}
         <View style={S.sectionHeader}>
-          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>My Budgets</Text>
+          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>{t('home.myBudgets')}</Text>
           <TouchableOpacity onPress={() => router.push('/modals/add-budget')}>
-            <Text style={[S.seeAll, { color: C.primary }]}>+ Add</Text>
+            <Text style={[S.seeAll, { color: C.primary }]}>{t('home.add')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -575,8 +578,8 @@ export default function HomeScreen() {
                       <ProgressBar progress={pct} color={barColor} height={6} animated />
                       <Text style={{ ...Typography.caption, color: remaining >= 0 ? C.success : C.danger, marginTop: 3 }}>
                         {remaining >= 0
-                          ? `${formatCurrency(remaining, currency, { compact: true })} left`
-                          : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} over`}
+                          ? `${formatCurrency(remaining, currency, { compact: true })} ${t('home.leftShort')}`
+                          : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} ${t('home.overShort')}`}
                       </Text>
                     </View>
                     <View style={S.personalBudgetActions}>
@@ -603,15 +606,15 @@ export default function HomeScreen() {
             onPress={() => router.push('/modals/add-budget')}
             style={[S.emptyCard, { backgroundColor: C.surface, borderColor: C.border }, Shadow.sm]}
           >
-            <Text style={[S.emptyCardText, { color: C.textTertiary }]}>No budgets yet — tap to set spending limits</Text>
+            <Text style={[S.emptyCardText, { color: C.textTertiary }]}>{t('home.noBudgetsYet')}</Text>
           </TouchableOpacity>
         )}
 
         {/* ════════ Recent Transactions ════════ */}
         <View style={[S.sectionHeader, { marginTop: 24 }]}>
-          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>Recent Transactions</Text>
+          <Text style={[S.sectionTitle, { color: C.textPrimary }]}>{t('home.recentTransactions')}</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/transactions' as any)}>
-            <Text style={[S.seeAll, { color: C.textSecondary }]}>See all →</Text>
+            <Text style={[S.seeAll, { color: C.textSecondary }]}>{t('home.seeAll')}</Text>
           </TouchableOpacity>
         </View>
         {recentTransactions.length > 0 ? (
@@ -629,7 +632,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={[S.emptyCard, { backgroundColor: C.surface, borderColor: C.border, marginBottom: 40 }, Shadow.sm]}>
-            <Text style={[S.emptyCardText, { color: C.textTertiary }]}>No transactions yet</Text>
+            <Text style={[S.emptyCardText, { color: C.textTertiary }]}>{t('home.noTransactionsYet')}</Text>
           </View>
         )}
 

@@ -10,6 +10,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Modal, RefreshControl, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { format, differenceInDays, parseISO, isPast } from 'date-fns';
@@ -66,18 +67,19 @@ function getDebtUrgency(dueDate: string | null): DebtUrgency {
   }
 }
 
-const URGENCY_META: Record<DebtUrgency, { label: string; bg: string; text: string; Icon: LucideIcon }> = {
-  overdue:  { label: 'Overdue',        bg: '#fecaca', text: '#991b1b', Icon: AlertOctagon  },
-  critical: { label: 'Due very soon',  bg: '#fee2e2', text: '#dc2626', Icon: AlertTriangle  },
-  urgent:   { label: 'Due this month', bg: '#fef3c7', text: '#92400e', Icon: Clock          },
-  on_track: { label: 'On track',       bg: '#d1fae5', text: '#065f46', Icon: CheckCircle2   },
-  no_date:  { label: 'No due date',    bg: '#f3f4f6', text: '#6b7280', Icon: Calendar       },
+const URGENCY_META: Record<DebtUrgency, { labelKey: string; bg: string; text: string; Icon: LucideIcon }> = {
+  overdue:  { labelKey: 'finances.overdue',      bg: '#fecaca', text: '#991b1b', Icon: AlertOctagon  },
+  critical: { labelKey: 'finances.dueSoon',      bg: '#fee2e2', text: '#dc2626', Icon: AlertTriangle  },
+  urgent:   { labelKey: 'finances.dueThisMonth', bg: '#fef3c7', text: '#92400e', Icon: Clock          },
+  on_track: { labelKey: 'finances.onTrack',      bg: '#d1fae5', text: '#065f46', Icon: CheckCircle2   },
+  no_date:  { labelKey: 'finances.noDateLabel',  bg: '#f3f4f6', text: '#6b7280', Icon: Calendar       },
 };
 
 function DebtCard({ debt, currency, C, onEdit, onPay }: {
   debt: Debt; currency: string; C: any;
   onEdit: () => void; onPay: () => void;
 }) {
+  const { t } = useTranslation();
   const urgency  = getDebtUrgency(debt.dueDate);
   const meta     = URGENCY_META[urgency];
   const remaining = Math.max(debt.totalAmount - debt.amountPaid, 0);
@@ -89,9 +91,9 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
     try {
       const due = parseISO(debt.dueDate);
       const days = differenceInDays(due, new Date());
-      if (days < 0)       daysLabel = `${Math.abs(days)}d overdue`;
-      else if (days === 0) daysLabel = 'Due today';
-      else                daysLabel = `${days}d left`;
+      if (days < 0)       daysLabel = t('finances.daysOverdue', { n: Math.abs(days) });
+      else if (days === 0) daysLabel = t('finances.dueToday');
+      else                daysLabel = t('finances.daysLeft', { n: days });
     } catch {}
   }
 
@@ -104,16 +106,16 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[debtStyles.debtName, { color: C.textPrimary }]} numberOfLines={1}>{debt.name}</Text>
-          <Text style={[debtStyles.lender, { color: C.textTertiary }]}>To: {debt.lender}</Text>
+          <Text style={[debtStyles.lender, { color: C.textTertiary }]}>{t('finances.to')} {debt.lender}</Text>
         </View>
         {isPaid ? (
           <View style={[debtStyles.pill, { backgroundColor: '#d1fae5' }]}>
-            <Text style={[debtStyles.pillText, { color: '#065f46' }]}>✓ Paid off</Text>
+            <Text style={[debtStyles.pillText, { color: '#065f46' }]}>{t('finances.paidOff')}</Text>
           </View>
         ) : (
           <View style={[debtStyles.pill, { backgroundColor: meta.bg }]}>
             <Text style={[debtStyles.pillText, { color: meta.text }]}>
-              {daysLabel || meta.label}
+              {daysLabel || t(meta.labelKey)}
             </Text>
           </View>
         )}
@@ -122,13 +124,13 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
       {/* Amounts */}
       <View style={debtStyles.amtRow}>
         <View>
-          <Text style={[debtStyles.amtLabel, { color: C.textTertiary }]}>Remaining</Text>
+          <Text style={[debtStyles.amtLabel, { color: C.textTertiary }]}>{t('finances.remaining')}</Text>
           <Text style={[debtStyles.amtValue, { color: isPaid ? '#065f46' : C.danger }]}>
             {isPaid ? '—' : formatCurrency(remaining, currency)}
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[debtStyles.amtLabel, { color: C.textTertiary }]}>Total</Text>
+          <Text style={[debtStyles.amtLabel, { color: C.textTertiary }]}>{t('finances.total')}</Text>
           <Text style={[debtStyles.amtValue, { color: C.textSecondary }]}>{formatCurrency(debt.totalAmount, currency)}</Text>
         </View>
       </View>
@@ -138,11 +140,11 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
         <ProgressBar progress={pct} color={isPaid ? '#10b981' : meta.text} height={6} animated />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text style={[debtStyles.progressLabel, { color: C.textTertiary }]}>
-            {pct.toFixed(0)}% paid
+            {pct.toFixed(0)}{t('finances.pctPaid')}
           </Text>
           {debt.interestRate != null && (
             <Text style={[debtStyles.progressLabel, { color: C.textTertiary }]}>
-              {debt.interestRate}% p.a.
+              {t('finances.interestRate', { rate: debt.interestRate })}
             </Text>
           )}
         </View>
@@ -153,7 +155,7 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
         <View style={[debtStyles.dueDateRow, { backgroundColor: meta.bg + '80', flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
           <Calendar size={12} color={meta.text} strokeWidth={2} />
           <Text style={[debtStyles.dueDateText, { color: meta.text }]}>
-            Due {format(parseISO(debt.dueDate), 'dd MMM yyyy')}
+            {t('finances.dueDateLabel', { date: format(parseISO(debt.dueDate), 'dd MMM yyyy') })}
           </Text>
         </View>
       )}
@@ -162,12 +164,12 @@ function DebtCard({ debt, currency, C, onEdit, onPay }: {
       <View style={debtStyles.actionsRow}>
         <TouchableOpacity onPress={onEdit} style={[debtStyles.actionBtn, { backgroundColor: C.surfaceRaised, flex: 1 }]}>
           <Pencil size={13} color={C.textSecondary} strokeWidth={2.5} />
-          <Text style={[debtStyles.actionBtnText, { color: C.textSecondary }]}>Edit</Text>
+          <Text style={[debtStyles.actionBtnText, { color: C.textSecondary }]}>{t('finances.edit')}</Text>
         </TouchableOpacity>
         {!isPaid && (
           <TouchableOpacity onPress={onPay} style={[debtStyles.actionBtn, { backgroundColor: '#0E2417', flex: 1.5 }]}>
             <Banknote size={13} color="#9FE870" strokeWidth={2} />
-            <Text style={[debtStyles.actionBtnText, { color: '#9FE870' }]}>Make Payment</Text>
+            <Text style={[debtStyles.actionBtnText, { color: '#9FE870' }]}>{t('finances.makePayment')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -182,6 +184,7 @@ function GoalCard({
 }: {
   goal: any; C: any; currency: string; onAddFunds: () => void;
 }) {
+  const { t } = useTranslation();
   const pct       = goal.target_amount > 0 ? Math.min(goal.current_amount / goal.target_amount * 100, 100) : 0;
   const remaining = goal.target_amount - goal.current_amount;
 
@@ -199,7 +202,7 @@ function GoalCard({
           <View style={{ flex: 1 }}>
             <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{goal.name}</Text>
             <Text style={{ ...Typography.caption, color: C.textTertiary }}>
-              {goal.deadline ? format(new Date(goal.deadline), 'MMM yyyy') : 'No deadline'}
+              {goal.deadline ? format(new Date(goal.deadline), 'MMM yyyy') : t('finances.noDeadline')}
             </Text>
           </View>
         </View>
@@ -223,8 +226,8 @@ function GoalCard({
       <ProgressBar progress={pct} color={C.primary} height={6} animated />
 
       <View style={styles.goalFooter}>
-        <Text style={styles.goalFooterText}>{pct.toFixed(0)}% SAVED</Text>
-        <Text style={styles.goalFooterText}>{formatCurrency(remaining, currency)} TO GO</Text>
+        <Text style={styles.goalFooterText}>{pct.toFixed(0)}% {t('finances.pctSaved')}</Text>
+        <Text style={styles.goalFooterText}>{formatCurrency(remaining, currency)} {t('finances.toGo')}</Text>
       </View>
     </View>
   );
@@ -234,6 +237,7 @@ function GoalCard({
 
 export default function GoalsScreen() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { user, profile }                               = useAuthStore();
   const { goals, loadGoals, depositToGoal, updateGoal } = useGoalStore();
   const { addTransaction, categories, transactions }    = useTransactionStore();
@@ -286,19 +290,19 @@ export default function GoalsScreen() {
   const handleConfirm = async () => {
     if (!modalGoalId || !user || !modalGoal) return;
     const parsed = parseCurrencyInput(amount);
-    if (parsed <= 0) { setAmountError('Please enter a valid amount.'); return; }
+    if (parsed <= 0) { setAmountError(t('finances.enterValidAmount')); return; }
     setIsSaving(true); setAmountError('');
     try {
       if (modalMode === 'add') {
         // ── Balance protection ───────────────────────────────────────────────
         if (currentBalance < parsed) {
           setAmountError(
-            `Insufficient available balance. You have ${formatCurrency(Math.max(currentBalance, 0), currency)} available.`
+            t('finances.insufficientBalance', { amount: formatCurrency(Math.max(currentBalance, 0), currency) })
           );
           return;
         }
         const canAdd = modalGoal.target_amount - modalGoal.current_amount;
-        if (parsed > canAdd) { setAmountError(`Max you can add is ${formatCurrency(canAdd, currency)}`); return; }
+        if (parsed > canAdd) { setAmountError(t('finances.maxAddError', { amount: formatCurrency(canAdd, currency) })); return; }
         await depositToGoal(modalGoalId, parsed);
         const expCat = categories.find(c =>
           /saving|invest|transfer/i.test(c.name) && (c.type === 'expense' || c.type === 'both')
@@ -310,7 +314,7 @@ export default function GoalsScreen() {
         });
       } else {
         if (parsed > modalGoal.current_amount) {
-          setAmountError(`You only have ${formatCurrency(modalGoal.current_amount, currency)} saved`); return;
+          setAmountError(t('finances.onlySavedError', { amount: formatCurrency(modalGoal.current_amount, currency) })); return;
         }
         const newSaved = modalGoal.current_amount - Math.min(parsed, modalGoal.current_amount);
         const incomeCat = categories.find(c => c.type === 'income' || c.type === 'both') ?? categories[0];
@@ -323,7 +327,7 @@ export default function GoalsScreen() {
       }
       closeModal();
     } catch (err: any) {
-      setAmountError(err?.message ?? 'Something went wrong. Please try again.');
+      setAmountError(err?.message ?? t('finances.somethingWrong'));
     } finally {
       setIsSaving(false);
     }
@@ -371,14 +375,14 @@ export default function GoalsScreen() {
   const handlePayDebt = async () => {
     if (!payDebtId || !payDebt_ || !user) return;
     const parsed = parseCurrencyInput(payAmountStr);
-    if (parsed <= 0) { setPayAmountErr('Please enter a valid amount.'); return; }
+    if (parsed <= 0) { setPayAmountErr(t('finances.enterValidAmount')); return; }
     const maxPay = payDebt_.totalAmount - payDebt_.amountPaid;
-    if (parsed > maxPay) { setPayAmountErr(`Max payment is ${formatCurrency(maxPay, currency)}`); return; }
+    if (parsed > maxPay) { setPayAmountErr(t('finances.maxPaymentError', { amount: formatCurrency(maxPay, currency) })); return; }
 
     // Balance check — payment must come from real money
     if (currentBalance < parsed) {
       setPayAmountErr(
-        `Not enough balance. You have ${formatCurrency(Math.max(currentBalance, 0), currency)} available.\nAdd income first to cover this payment.`
+        t('finances.notEnoughBalance', { amount: formatCurrency(Math.max(currentBalance, 0), currency) })
       );
       return;
     }
@@ -420,14 +424,14 @@ export default function GoalsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: C.textPrimary }]}>Finances</Text>
-          <Text style={[styles.subtitle, { color: C.textSecondary }]}>Budgets, savings & debts.</Text>
+          <Text style={[styles.title, { color: C.textPrimary }]}>{t('nav.finances')}</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>{t('account.subtitle')}</Text>
         </View>
         {activeTab === 'Budget' && (
           <TouchableOpacity onPress={() => router.push('/modals/add-budget')} style={[styles.addBtn, { borderColor: C.border }]}>
             <View style={styles.addBtnInner}>
               <Plus size={14} color={C.textPrimary} strokeWidth={2.5} />
-              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>Budget</Text>
+              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>{t('finances.tabBudget')}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -435,7 +439,7 @@ export default function GoalsScreen() {
           <TouchableOpacity onPress={() => router.push('/modals/add-goal')} style={[styles.addBtn, { borderColor: C.border }]}>
             <View style={styles.addBtnInner}>
               <Plus size={14} color={C.textPrimary} strokeWidth={2.5} />
-              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>Add</Text>
+              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>{t('home.add')}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -443,7 +447,7 @@ export default function GoalsScreen() {
           <TouchableOpacity onPress={() => router.push('/modals/add-debt' as any)} style={[styles.addBtn, { borderColor: C.border }]}>
             <View style={styles.addBtnInner}>
               <Plus size={14} color={C.textPrimary} strokeWidth={2.5} />
-              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>Debt</Text>
+              <Text style={[styles.addBtnText, { color: C.textPrimary }]}>{t('finances.tabDebts')}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -471,7 +475,7 @@ export default function GoalsScreen() {
               { color: activeTab === tab ? C.textPrimary : C.textTertiary },
               activeTab === tab && { fontWeight: '700' },
             ]}>
-              {tab}
+              {tab === 'Budget' ? t('finances.tabBudget') : tab === 'Goals' ? t('finances.tabGoals') : t('finances.tabDebts')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -487,9 +491,9 @@ export default function GoalsScreen() {
           <>
             {/* Personal budgets */}
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>My Budgets</Text>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('home.myBudgets')}</Text>
               <TouchableOpacity onPress={() => router.push('/modals/add-budget')}>
-                <Text style={[styles.sectionSub, { color: C.primary }]}>+ Add</Text>
+                <Text style={[styles.sectionSub, { color: C.primary }]}>{t('home.add')}</Text>
               </TouchableOpacity>
             </View>
             {budgetsWithSpend.length > 0 ? (
@@ -522,8 +526,8 @@ export default function GoalsScreen() {
                         <ProgressBar progress={pct} color={barColor} height={6} animated />
                         <Text style={{ ...Typography.caption, color: remaining >= 0 ? C.success : C.danger, marginTop: 3 }}>
                           {remaining >= 0
-                            ? `${formatCurrency(remaining, currency, { compact: true })} left`
-                            : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} over budget`}
+                            ? `${formatCurrency(remaining, currency, { compact: true })} ${t('home.leftShort')}`
+                            : `${formatCurrency(Math.abs(remaining), currency, { compact: true })} ${t('home.overBudget')}`}
                         </Text>
                       </View>
                       <View style={styles.budgetActions}>
@@ -550,16 +554,16 @@ export default function GoalsScreen() {
                 style={[styles.emptyGoal, { backgroundColor: C.surface, borderColor: C.border }]}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>No budgets yet</Text>
-                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>Set spending limits by category</Text>
+                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>{t('finances.noBudgetsYet')}</Text>
+                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>{t('finances.noBudgetsSub')}</Text>
               </TouchableOpacity>
             )}
 
             {/* Fixed Obligations */}
             <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Fixed Obligations</Text>
+              <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('finances.fixedObligations')}</Text>
               <TouchableOpacity onPress={() => router.push('/modals/add-recurring')}>
-                <Text style={[styles.sectionSub, { color: C.primary }]}>+ Add</Text>
+                <Text style={[styles.sectionSub, { color: C.primary }]}>{t('home.add')}</Text>
               </TouchableOpacity>
             </View>
             {recurringItems.length === 0 ? (
@@ -568,14 +572,14 @@ export default function GoalsScreen() {
                 style={[styles.emptyGoal, { backgroundColor: C.surface, borderColor: C.border }]}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>No fixed bills yet</Text>
-                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>Add rent, subscriptions, debt repayments</Text>
+                <Text style={[styles.emptyGoalTitle, { color: C.textPrimary }]}>{t('manageRecurring.empty')}</Text>
+                <Text style={[styles.emptyGoalSub, { color: C.textTertiary }]}>{t('manageRecurring.emptySub')}</Text>
               </TouchableOpacity>
             ) : (
               <>
                 <View style={[styles.obligationSummaryCard, { backgroundColor: C.surface }, Shadow.sm]}>
                   <View style={[styles.obligationSummaryLeft, { backgroundColor: C.dangerLight }]}>
-                    <Text style={[styles.obligationTotalLabel, { color: C.textTertiary }]}>TOTAL / MONTH</Text>
+                    <Text style={[styles.obligationTotalLabel, { color: C.textTertiary }]}>{t('manageRecurring.total').toUpperCase()}</Text>
                     <Text style={[styles.obligationTotalAmt, { color: C.danger }]}>
                       {formatCurrency(recurringItems.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0), currency)}
                     </Text>
@@ -583,7 +587,7 @@ export default function GoalsScreen() {
                   <View style={styles.obligationSummaryRight}>
                     <Text style={[styles.obligationCountBig, { color: C.textPrimary }]}>{recurringItems.length}</Text>
                     <Text style={[styles.obligationCountLabel, { color: C.textTertiary }]}>
-                      {recurringItems.length === 1 ? 'obligation' : 'obligations'}
+                      {t('finances.fixedObligations').toLowerCase()}
                     </Text>
                   </View>
                 </View>
@@ -606,7 +610,7 @@ export default function GoalsScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={{ ...Typography.titleSmall, color: C.textPrimary }}>{item.name}</Text>
                           <Text style={{ ...Typography.caption, color: C.textTertiary, marginTop: 2 }}>
-                            {item.frequency === 'monthly' ? 'Monthly' : item.frequency === 'weekly' ? 'Weekly' : 'Yearly'}
+                            {item.frequency === 'monthly' ? t('addRecurring.monthly') : item.frequency === 'weekly' ? t('addRecurring.weekly') : t('addRecurring.yearly')}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
@@ -652,12 +656,12 @@ export default function GoalsScreen() {
                   <Target size={22} color={C.black} strokeWidth={2.5} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.summaryOverline, { color: C.primaryDark }]}>SAVED SO FAR</Text>
+                  <Text style={[styles.summaryOverline, { color: C.primaryDark }]}>{t('finances.pctSaved')}</Text>
                   <Text style={[styles.summaryAmt, { color: C.textPrimary }]}>
                     {formatCurrency(totalSaved, currency)}
                   </Text>
                   <Text style={[styles.summarySub, { color: C.textSecondary }]}>
-                    Across {activeGoals.length} goal{activeGoals.length !== 1 ? 's' : ''} · {overallPct.toFixed(0)}% there
+                    {activeGoals.length} {t('home.activeGoal', { count: activeGoals.length })} · {overallPct.toFixed(0)}% {t('finances.overallProgress')}
                   </Text>
                 </View>
               </View>
@@ -685,7 +689,7 @@ export default function GoalsScreen() {
             {activeGoals.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Active goals</Text>
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('finances.tabGoals')}</Text>
                 </View>
                 <View style={styles.goalsList}>
                   {activeGoals.map(goal => (
@@ -702,7 +706,7 @@ export default function GoalsScreen() {
                 <View style={styles.sectionHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Trophy size={16} color={C.textPrimary} strokeWidth={2} />
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Completed</Text>
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('finances.paidOff')}</Text>
                 </View>
                 </View>
                 <View style={styles.goalsList}>
@@ -717,15 +721,15 @@ export default function GoalsScreen() {
             {goals.length === 0 && (
               <View style={styles.empty}>
                 <Star size={44} color={C.textTertiary} strokeWidth={1.5} />
-                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No goals yet</Text>
+                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>{t('finances.noGoalsYet')}</Text>
                 <Text style={[styles.emptyText, { color: C.textTertiary }]}>
-                  Set a savings goal — vacation, emergency fund, or anything you dream of
+                  {t('finances.noGoalsSub')}
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push('/modals/add-goal')}
                   style={[styles.createBtn, { backgroundColor: C.primaryLight }]}
                 >
-                  <Text style={[styles.createBtnText, { color: C.primary }]}>Create a Goal</Text>
+                  <Text style={[styles.createBtnText, { color: C.primary }]}>{t('finances.addGoal')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -741,16 +745,16 @@ export default function GoalsScreen() {
               <View style={[debtStyles.summaryCard, Shadow.sm, { backgroundColor: C.surface }]}>
                 <View style={[debtStyles.summaryLeft, { backgroundColor: totalDebt > 0 ? '#fef2f2' : '#d1fae5' }]}>
                   <Text style={[debtStyles.summaryLabelSmall, { color: totalDebt > 0 ? '#991b1b' : '#065f46' }]}>
-                    TOTAL OWED
+                    {t('finances.totalDebt').toUpperCase()}
                   </Text>
                   <Text style={[debtStyles.summaryAmount, { color: totalDebt > 0 ? C.danger : '#10b981' }]}>
-                    {totalDebt > 0 ? formatCurrency(totalDebt, currency) : 'All clear!'}
+                    {totalDebt > 0 ? formatCurrency(totalDebt, currency) : t('finances.noDebtsYet').split('!')[0]}
                   </Text>
                 </View>
                 <View style={debtStyles.summaryRight}>
-                  <Text style={[debtStyles.summaryStatLabel, { color: C.textTertiary }]}>Active</Text>
+                  <Text style={[debtStyles.summaryStatLabel, { color: C.textTertiary }]}>{t('finances.activeDebts')}</Text>
                   <Text style={[debtStyles.summaryStatVal, { color: C.textPrimary }]}>{activeDebts.length}</Text>
-                  <Text style={[debtStyles.summaryStatLabel, { color: C.textTertiary, marginTop: 4 }]}>Paid off</Text>
+                  <Text style={[debtStyles.summaryStatLabel, { color: C.textTertiary, marginTop: 4 }]}>{t('finances.paidOffDebts')}</Text>
                   <Text style={[debtStyles.summaryStatVal, { color: '#10b981' }]}>{paidOffDebts.length}</Text>
                 </View>
               </View>
@@ -759,14 +763,14 @@ export default function GoalsScreen() {
             {/* Priority legend */}
             {activeDebts.length > 0 && (
               <View style={[debtStyles.legendCard, { backgroundColor: C.surface }]}>
-                <Text style={[debtStyles.legendTitle, { color: C.textSecondary }]}>TIME PRIORITY</Text>
+                <Text style={[debtStyles.legendTitle, { color: C.textSecondary }]}>{t('finances.totalDebt').toUpperCase()}</Text>
                 <View style={debtStyles.legendRow}>
                   {(['overdue','critical','urgent','on_track'] as DebtUrgency[]).map(u => {
                     const m = URGENCY_META[u];
                     return (
                       <View key={u} style={[debtStyles.legendPill, { backgroundColor: m.bg }]}>
                         <m.Icon size={10} color={m.text} strokeWidth={2.5} />
-                        <Text style={[debtStyles.legendPillText, { color: m.text }]}>{m.label.split(' ')[0]}</Text>
+                        <Text style={[debtStyles.legendPillText, { color: m.text }]}>{t(m.labelKey).split(' ')[0]}</Text>
                       </View>
                     );
                   })}
@@ -778,7 +782,7 @@ export default function GoalsScreen() {
             {activeDebts.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Active debts</Text>
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('finances.activeDebts')}</Text>
                 </View>
                 <View style={{ gap: 12 }}>
                   {activeDebts.map(debt => (
@@ -798,7 +802,7 @@ export default function GoalsScreen() {
                 <View style={styles.sectionHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Trophy size={16} color={C.textPrimary} strokeWidth={2} />
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>Paid off</Text>
+                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('finances.paidOffDebts')}</Text>
                 </View>
                 </View>
                 <View style={{ gap: 12 }}>
@@ -816,15 +820,15 @@ export default function GoalsScreen() {
             {debts.length === 0 && (
               <View style={styles.empty}>
                 <CreditCard size={44} color={C.textTertiary} strokeWidth={1.5} />
-                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>No debts tracked</Text>
+                <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>{t('finances.noDebtsYet')}</Text>
                 <Text style={[styles.emptyText, { color: C.textTertiary }]}>
-                  Track loans, credit cards or money you owe anyone — with due dates and time priority
+                  {t('finances.noDebtsSub')}
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push('/modals/add-debt' as any)}
                   style={[styles.createBtn, { backgroundColor: '#fef2f2' }]}
                 >
-                  <Text style={[styles.createBtnText, { color: C.danger }]}>Track a Debt</Text>
+                  <Text style={[styles.createBtnText, { color: C.danger }]}>{t('finances.addDebt')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -844,7 +848,7 @@ export default function GoalsScreen() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing[2] }}>
               <Banknote size={18} color={C.textPrimary} strokeWidth={2} />
-              <Text style={[styles.modalSub, { color: C.textPrimary }]}>Make Payment</Text>
+              <Text style={[styles.modalSub, { color: C.textPrimary }]}>{t('finances.makePayment')}</Text>
             </View>
             <Text style={[styles.modalHint, { color: C.textSecondary }]}>
               {payDebt_?.name} → {payDebt_?.lender}
@@ -854,7 +858,7 @@ export default function GoalsScreen() {
             <View style={[styles.payBalanceRow, {
               backgroundColor: currentBalance > 0 ? C.primaryLight : C.dangerLight,
             }]}>
-              <Text style={[styles.payBalanceLabel, { color: C.textSecondary }]}>Available balance</Text>
+              <Text style={[styles.payBalanceLabel, { color: C.textSecondary }]}>{t('finances.availableBalance')}</Text>
               <Text style={[styles.payBalanceAmt, {
                 color: currentBalance > 0 ? C.primary : C.danger,
               }]}>
@@ -871,7 +875,7 @@ export default function GoalsScreen() {
                     onPress={() => { setPayDebtId(null); router.push('/modals/add-transaction'); }}
                     style={[styles.topUpBtn, { backgroundColor: C.danger }]}
                   >
-                    <Text style={styles.topUpBtnText}>+ Add Income / Top Up</Text>
+                    <Text style={styles.topUpBtnText}>{t('finances.addIncomeTopUp')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -890,12 +894,12 @@ export default function GoalsScreen() {
               />
             </View>
             <Text style={[styles.payHint, { color: C.textTertiary }]}>
-              {payDebt_ ? formatCurrency(Math.max(payDebt_.totalAmount - payDebt_.amountPaid, 0), currency) : ''} remaining on this debt
+              {payDebt_ ? formatCurrency(Math.max(payDebt_.totalAmount - payDebt_.amountPaid, 0), currency) : ''} {t('finances.remainingOnDebt')}
             </Text>
 
             <View style={styles.modalActions}>
-              <Button label="Cancel" variant="ghost" onPress={() => setPayDebtId(null)} style={{ flex: 1 }} disabled={isPaySaving} />
-              <Button label={isPaySaving ? 'Processing…' : 'Pay Now'} onPress={handlePayDebt} loading={isPaySaving} style={{ flex: 1.5 }} />
+              <Button label={t('finances.cancelBtn')} variant="ghost" onPress={() => setPayDebtId(null)} style={{ flex: 1 }} disabled={isPaySaving} />
+              <Button label={isPaySaving ? t('finances.processing') : t('finances.payNow')} onPress={handlePayDebt} loading={isPaySaving} style={{ flex: 1.5 }} />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -921,7 +925,7 @@ export default function GoalsScreen() {
                   ]}
                 >
                   <Text style={[styles.modeBtnText, { color: modalMode === mode ? '#fff' : C.textSecondary }]}>
-                    {mode === 'add' ? '↑ Add savings' : '↓ Withdraw'}
+                    {mode === 'add' ? t('finances.addSavingsBtn') : t('finances.withdrawBtn')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -932,8 +936,8 @@ export default function GoalsScreen() {
             </Text>
             <Text style={[styles.modalHint, { color: C.textTertiary }]}>
               {modalMode === 'add'
-                ? `${formatCurrency(modalGoal?.current_amount ?? 0, currency)} saved · ${formatCurrency((modalGoal?.target_amount ?? 0) - (modalGoal?.current_amount ?? 0), currency)} remaining`
-                : `${formatCurrency(modalGoal?.current_amount ?? 0, currency)} available to withdraw`}
+                ? `${formatCurrency(modalGoal?.current_amount ?? 0, currency)} ${t('finances.saved')} · ${formatCurrency((modalGoal?.target_amount ?? 0) - (modalGoal?.current_amount ?? 0), currency)} ${t('finances.remaining')}`
+                : `${formatCurrency(modalGoal?.current_amount ?? 0, currency)} ${t('finances.availableToWithdraw')}`}
             </Text>
 
             {amountError ? (
@@ -958,9 +962,9 @@ export default function GoalsScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <Button label="Cancel" variant="ghost" onPress={closeModal} style={{ flex: 1 }} disabled={isSaving} />
+              <Button label={t('finances.cancelBtn')} variant="ghost" onPress={closeModal} style={{ flex: 1 }} disabled={isSaving} />
               <Button
-                label={isSaving ? 'Saving…' : modalMode === 'add' ? 'Add to Savings' : 'Withdraw'}
+                label={isSaving ? t('finances.saving') : modalMode === 'add' ? t('finances.addFundsTitle') : t('finances.withdrawTitle')}
                 onPress={handleConfirm} loading={isSaving} style={{ flex: 1 }}
               />
             </View>

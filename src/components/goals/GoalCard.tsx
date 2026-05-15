@@ -9,6 +9,7 @@ import { ProgressBar } from '../ui/ProgressBar';
 import { format } from 'date-fns';
 import { GOAL_ICON, Pencil, Check, Target } from '../../lib/icons';
 import type { LucideIcon } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 interface GoalCardProps {
   goal:        SavingsGoal;
@@ -20,6 +21,7 @@ interface GoalCardProps {
 
 export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw }: GoalCardProps) {
   const C         = useTheme();
+  const { t }     = useTranslation();
   const pct       = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
   const remaining = goal.target_amount - goal.current_amount;
 
@@ -30,7 +32,7 @@ export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw
       {goal.is_completed && (
         <View style={[styles.completedBadge, { backgroundColor: C.successLight }]}>
           <Check size={11} color={C.success} strokeWidth={2.5} />
-          <Text style={[styles.completedText, { color: C.success }]}>Completed</Text>
+          <Text style={[styles.completedText, { color: C.success }]}>{t('finances.completed')}</Text>
         </View>
       )}
 
@@ -42,7 +44,7 @@ export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw
           <Text style={[styles.name, { color: C.textPrimary }]} numberOfLines={1}>{goal.name}</Text>
           {goal.deadline && (
             <Text style={[styles.deadline, { color: C.textTertiary }]}>
-              Due {format(new Date(goal.deadline), 'MMM yyyy')}
+              {t('finances.dueDateLabel', { date: format(new Date(goal.deadline), 'MMM yyyy') })}
             </Text>
           )}
         </View>
@@ -64,10 +66,10 @@ export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw
       <View style={styles.progressBlock}>
         <ProgressBar progress={pct} color={goal.is_completed ? C.success : goal.color} height={8} animated />
         <View style={styles.progressLabels}>
-          <Text style={[styles.pctLabel, { color: C.textSecondary }]}>{pct.toFixed(0)}% saved</Text>
+          <Text style={[styles.pctLabel, { color: C.textSecondary }]}>{pct.toFixed(0)}% {t('finances.savedLabel')}</Text>
           {!goal.is_completed && (
             <Text style={[styles.remainingLabel, { color: C.textTertiary }]}>
-              {formatCurrency(remaining, currency)} to go
+              {formatCurrency(remaining, currency)} {t('finances.toGoLabel')}
             </Text>
           )}
         </View>
@@ -81,7 +83,7 @@ export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw
               style={[styles.actionBtn, { backgroundColor: goal.color + '18' }]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.actionBtnText, { color: goal.color }]}>+ Add savings</Text>
+              <Text style={[styles.actionBtnText, { color: goal.color }]}>{t('finances.addSavingsBtn')}</Text>
             </TouchableOpacity>
           )}
           {onWithdraw && goal.current_amount > 0 && (
@@ -90,7 +92,7 @@ export function GoalCard({ goal, currency = 'MYR', onEdit, onDeposit, onWithdraw
               style={[styles.actionBtn, { backgroundColor: C.dangerLight }]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.actionBtnText, { color: C.danger }]}>↓ Withdraw</Text>
+              <Text style={[styles.actionBtnText, { color: C.danger }]}>{t('finances.withdrawBtn')}</Text>
             </TouchableOpacity>
           )}
         </View>

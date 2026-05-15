@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput, Modal,
+  KeyboardAvoidingView, Platform, TextInput, Modal, I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
+import { useTranslation } from 'react-i18next';
 
 import { useAuthStore }        from '../../src/stores/authStore';
 import { useTransactionStore } from '../../src/stores/transactionStore';
@@ -26,6 +27,7 @@ const YEAR  = now.getFullYear();
 
 export default function AddBudgetModal() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user, profile }                           = useAuthStore();
   const { categories }                              = useTransactionStore();
@@ -104,14 +106,14 @@ export default function AddBudgetModal() {
             <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
-            {isEditing ? 'Edit Budget' : 'Set Budget'}
+            {isEditing ? t('addBudget.titleEdit') : t('addBudget.titleAdd')}
           </Text>
           <View style={{ width: 36 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={[styles.subtitle, { color: C.textSecondary }]}>
-            {isEditing ? 'Update your monthly spending limit' : 'Set a monthly spending limit for a category'}
+            {isEditing ? t('addBudget.subtitleEdit') : t('addBudget.subtitleAdd')}
           </Text>
 
           {error ? (
@@ -132,14 +134,14 @@ export default function AddBudgetModal() {
               keyboardType="decimal-pad"
               placeholder="0.00"
               placeholderTextColor={C.textTertiary}
-              style={[styles.amountInput, { color: C.textPrimary }]}
+              style={[styles.amountInput, { color: C.textPrimary, textAlign: I18nManager.isRTL ? 'right' : 'center' }]}
               autoFocus={!isEditing}
               maxLength={10}
             />
           </View>
 
           {/* Category grid */}
-          <Text style={[styles.label, { color: C.textPrimary }]}>Category</Text>
+          <Text style={[styles.label, { color: C.textPrimary }]}>{t('addBudget.category')}</Text>
           <View style={styles.categoryGrid}>
             {expenseCategories.map(cat => {
               const selected = categoryId === cat.id;
@@ -167,7 +169,7 @@ export default function AddBudgetModal() {
           </View>
 
           <Button
-            label={isSaving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Set Budget')}
+            label={isSaving ? t('finances.saving') : (isEditing ? t('addBudget.saveChanges') : t('addBudget.titleAdd'))}
             onPress={handleSave}
             loading={isSaving}
             fullWidth
@@ -183,7 +185,7 @@ export default function AddBudgetModal() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={16} color={C.danger} strokeWidth={2} />
-                <Text style={[styles.deleteBtnText, { color: C.danger }]}>Delete budget</Text>
+                <Text style={[styles.deleteBtnText, { color: C.danger }]}>{t('addBudget.delete')}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -198,11 +200,10 @@ export default function AddBudgetModal() {
             <View style={[styles.deleteIconBox, { backgroundColor: C.dangerLight }]}>
               <Trash2 size={28} color={C.danger} strokeWidth={2} />
             </View>
-            <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>Delete Budget?</Text>
+            <Text style={[styles.deleteModalTitle, { color: C.textPrimary }]}>{t('addBudget.deleteConfirm')}</Text>
             <Text style={[styles.deleteModalBody, { color: C.textSecondary }]}>
-              This will remove the budget limit for{'\n'}
+              {t('addBudget.deleteMsg')}{'\n'}
               <Text style={{ fontWeight: '700', color: C.textPrimary }}>{catName}</Text>.
-              {'\n'}Your transactions won't be affected.
             </Text>
             <TouchableOpacity
               onPress={handleDelete}
@@ -211,14 +212,14 @@ export default function AddBudgetModal() {
               activeOpacity={0.8}
             >
               <Text style={styles.deleteConfirmBtnText}>
-                {isDeleting ? 'Deleting…' : 'Yes, delete it'}
+                {isDeleting ? t('addTransaction.deleting') : t('addTransaction.deleteConfirmBtn')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowDeleteConfirm(false)}
               style={[styles.deleteCancelBtn, { backgroundColor: C.surfaceRaised }]}
             >
-              <Text style={[styles.deleteCancelBtnText, { color: C.textPrimary }]}>Keep it</Text>
+              <Text style={[styles.deleteCancelBtnText, { color: C.textPrimary }]}>{t('addBudget.keepIt')}</Text>
             </TouchableOpacity>
           </View>
         </View>

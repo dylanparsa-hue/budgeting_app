@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput,
+  KeyboardAvoidingView, Platform, TextInput, I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,25 +15,27 @@ import { parseCurrencyInput }  from '../../src/utils/currency';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
 import { RecurringCategory, RecurringFrequency } from '../../src/types';
 import { BILL_META, X, AlertTriangle } from '../../src/lib/icons';
+import { useTranslation } from 'react-i18next';
 
-const CATEGORIES: { value: RecurringCategory; label: string }[] = [
-  { value: 'rent',         label: 'Rent / Mortgage'  },
-  { value: 'utilities',    label: 'Utilities / Bills' },
-  { value: 'subscription', label: 'Subscription'     },
-  { value: 'debt',         label: 'Debt / Loan'      },
-  { value: 'insurance',    label: 'Insurance'         },
-  { value: 'transport',    label: 'Transport'         },
-  { value: 'other',        label: 'Other'             },
+const CATEGORY_KEYS: { value: RecurringCategory; labelKey: string }[] = [
+  { value: 'rent',         labelKey: 'addRecurring.catRent'         },
+  { value: 'utilities',    labelKey: 'addRecurring.catUtilities'    },
+  { value: 'subscription', labelKey: 'addRecurring.catSubscription' },
+  { value: 'debt',         labelKey: 'addRecurring.catDebt'         },
+  { value: 'insurance',    labelKey: 'addRecurring.catInsurance'    },
+  { value: 'transport',    labelKey: 'addRecurring.catTransport'    },
+  { value: 'other',        labelKey: 'addRecurring.catOther'        },
 ];
 
-const FREQUENCIES: { value: RecurringFrequency; label: string }[] = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'weekly',  label: 'Weekly'  },
-  { value: 'yearly',  label: 'Yearly'  },
+const FREQUENCY_KEYS: { value: RecurringFrequency; labelKey: string }[] = [
+  { value: 'monthly', labelKey: 'addRecurring.monthly' },
+  { value: 'weekly',  labelKey: 'addRecurring.weekly'  },
+  { value: 'yearly',  labelKey: 'addRecurring.yearly'  },
 ];
 
 export default function AddRecurringModal() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { items, add, edit } = useRecurringStore();
 
@@ -81,7 +83,7 @@ export default function AddRecurringModal() {
             <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: C.textPrimary }]}>
-            {isEditing ? 'Edit Expense' : 'Add Fixed Expense'}
+            {isEditing ? t('addRecurring.titleEdit') : t('addRecurring.titleAdd')}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -99,11 +101,11 @@ export default function AddRecurringModal() {
 
           {/* Name */}
           <View>
-            <Text style={[styles.label, { color: C.textPrimary }]}>Name</Text>
+            <Text style={[styles.label, { color: C.textPrimary }]}>{t('addRecurring.name')}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Netflix, Apartment Rent, Car Loan…"
+              placeholder={t('addRecurring.namePlaceholder')}
               placeholderTextColor={C.textTertiary}
               style={[styles.textInput, { color: C.textPrimary, backgroundColor: C.surfaceRaised, borderColor: C.border }]}
               autoFocus={!isEditing}
@@ -113,7 +115,7 @@ export default function AddRecurringModal() {
 
           {/* Amount */}
           <View>
-            <Text style={[styles.label, { color: C.textPrimary }]}>Amount</Text>
+            <Text style={[styles.label, { color: C.textPrimary }]}>{t('addRecurring.amount')}</Text>
             <TextInput
               value={amountStr}
               onChangeText={setAmountStr}
@@ -127,9 +129,9 @@ export default function AddRecurringModal() {
 
           {/* Frequency */}
           <View>
-            <Text style={[styles.label, { color: C.textPrimary }]}>How often?</Text>
+            <Text style={[styles.label, { color: C.textPrimary }]}>{t('addRecurring.frequency')}</Text>
             <View style={styles.segmentRow}>
-              {FREQUENCIES.map(f => (
+              {FREQUENCY_KEYS.map(f => (
                 <TouchableOpacity
                   key={f.value}
                   onPress={() => { hapticSelect(); setFrequency(f.value); }}
@@ -140,7 +142,7 @@ export default function AddRecurringModal() {
                   ]}
                 >
                   <Text style={[styles.segmentText, { color: frequency === f.value ? '#fff' : C.textSecondary }]}>
-                    {f.label}
+                    {t(f.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -149,9 +151,9 @@ export default function AddRecurringModal() {
 
           {/* Category */}
           <View>
-            <Text style={[styles.label, { color: C.textPrimary }]}>Category</Text>
+            <Text style={[styles.label, { color: C.textPrimary }]}>{t('addRecurring.category')}</Text>
             <View style={styles.categoryGrid}>
-              {CATEGORIES.map(cat => {
+              {CATEGORY_KEYS.map(cat => {
                 const selected = category === cat.value;
                 const meta = BILL_META[cat.value] ?? BILL_META.other;
                 const CatIcon = meta.Icon;
@@ -167,7 +169,7 @@ export default function AddRecurringModal() {
                   >
                     <CatIcon size={16} color={selected ? '#fff' : meta.color} strokeWidth={2} />
                     <Text style={[styles.catLabel, { color: selected ? '#fff' : C.textPrimary }]}>
-                      {cat.label}
+                      {t(cat.labelKey)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -176,7 +178,7 @@ export default function AddRecurringModal() {
           </View>
 
           <Button
-            label={saving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Add Expense')}
+            label={saving ? t('finances.saving') : (isEditing ? t('addRecurring.saveChanges') : t('addRecurring.addExpense'))}
             onPress={handleSave}
             loading={saving}
             fullWidth
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
     ...Typography.bodyLarge,
     borderWidth: 1, borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing[4], paddingVertical: Spacing[3],
+    textAlign: (I18nManager.isRTL ? 'right' : 'left') as 'right' | 'left',
   },
 
   segmentRow: { flexDirection: 'row', gap: Spacing[2] },

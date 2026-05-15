@@ -10,6 +10,7 @@ import {
   View, Text, StyleSheet, ScrollView, SectionList,
   TouchableOpacity, TextInput, RefreshControl,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
@@ -48,13 +49,13 @@ function toMonthly(amount: number, freq: string) {
   return amount;
 }
 
-function groupByDate(txs: Transaction[]): { title: string; data: Transaction[] }[] {
+function groupByDate(txs: Transaction[], todayLabel: string, yesterdayLabel: string): { title: string; data: Transaction[] }[] {
   const groups = new Map<string, Transaction[]>();
   txs.forEach(tx => {
     const d = new Date(tx.date);
     let key: string;
-    if (isToday(d))          key = 'Today';
-    else if (isYesterday(d)) key = 'Yesterday';
+    if (isToday(d))          key = todayLabel;
+    else if (isYesterday(d)) key = yesterdayLabel;
     else                     key = format(d, 'EEEE, MMM d');
     const group = groups.get(key) ?? [];
     group.push(tx);
@@ -67,6 +68,7 @@ function groupByDate(txs: Transaction[]): { title: string; data: Transaction[] }
 
 export default function InsightsScreen() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { user, profile }                = useAuthStore();
   const { transactions, syncFromServer } = useTransactionStore();
   const removeTransaction                = useTransactionStore(s => s.removeTransaction);
@@ -115,7 +117,7 @@ export default function InsightsScreen() {
     return list;
   }, [transactions, txFilter, search]);
 
-  const sections = useMemo(() => groupByDate(filtered), [filtered]);
+  const sections = useMemo(() => groupByDate(filtered, t('home.today'), t('home.yesterday')), [filtered, t]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -176,7 +178,7 @@ export default function InsightsScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: C.textPrimary }]}>Insights</Text>
+        <Text style={[styles.title, { color: C.textPrimary }]}>{t('insights.title')}</Text>
         {activeTab === 'Transactions' && (
           <TouchableOpacity
             onPress={() => router.push('/modals/add-transaction')}
@@ -203,7 +205,7 @@ export default function InsightsScreen() {
               { color: activeTab === tab ? C.textPrimary : C.textTertiary },
               activeTab === tab && { fontWeight: '700' },
             ]}>
-              {tab === 'Spending' ? 'Spending Insights' : 'Transactions'}
+              {tab === 'Spending' ? t('insights.spendingInsights') : t('insights.transactions')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -220,7 +222,7 @@ export default function InsightsScreen() {
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Search transactions…"
+              placeholder={t('insights.searchPlaceholder')}
               placeholderTextColor={C.textTertiary}
               style={[styles.searchInput, { color: C.textPrimary }]}
             />
@@ -247,7 +249,7 @@ export default function InsightsScreen() {
                   styles.pillText,
                   { color: txFilter === f ? C.primary : C.textSecondary },
                 ]}>
-                  {f === 'all' ? 'All' : f === 'expense' ? '↓ Expenses' : '↑ Income'}
+                  {f === 'all' ? t('insights.filterAll') : f === 'expense' ? t('insights.filterExpenses') : t('insights.filterIncome')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -269,31 +271,31 @@ export default function InsightsScreen() {
                     styles.statsPeriodText,
                     { color: statPeriod === p ? '#fff' : C.textSecondary },
                   ]}>
-                    {p === 'day' ? 'Day' : p === 'week' ? 'Week' : p === 'month' ? 'Month' : 'Year'}
+                    {p === 'day' ? t('insights.periodDay') : p === 'week' ? t('insights.periodWeek') : p === 'month' ? t('insights.periodMonth') : t('insights.periodYear')}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { color: C.textTertiary }]}>Spent</Text>
+                <Text style={[styles.statLabel, { color: C.textTertiary }]}>{t('insights.spent')}</Text>
                 <Text style={[styles.statValue, { color: C.danger }]}>
                   {formatCurrency(stats.spent, currency)}
                 </Text>
                 {billsMonthly > 0 && (
-                  <Text style={[styles.statSub, { color: C.textTertiary }]}>incl. bills</Text>
+                  <Text style={[styles.statSub, { color: C.textTertiary }]}>{t('insights.inclBills')}</Text>
                 )}
               </View>
               <View style={[styles.statSep, { backgroundColor: C.border }]} />
               <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { color: C.textTertiary }]}>Earned</Text>
+                <Text style={[styles.statLabel, { color: C.textTertiary }]}>{t('insights.earned')}</Text>
                 <Text style={[styles.statValue, { color: C.success }]}>
                   {formatCurrency(stats.earned, currency)}
                 </Text>
               </View>
               <View style={[styles.statSep, { backgroundColor: C.border }]} />
               <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { color: C.textTertiary }]}>Net</Text>
+                <Text style={[styles.statLabel, { color: C.textTertiary }]}>{t('insights.net')}</Text>
                 <Text style={[styles.statValue, { color: stats.net >= 0 ? C.success : C.danger }]}>
                   {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net, currency)}
                 </Text>
@@ -305,14 +307,14 @@ export default function InsightsScreen() {
           {deleteTarget && (
             <View style={[styles.deleteBar, { backgroundColor: C.dangerLight }]}>
               <Text style={[styles.deleteBarText, { color: C.danger }]} numberOfLines={1}>
-                Delete "{deleteTarget.category?.name ?? 'transaction'}"?
+                {t('insights.deleteConfirmTitle', { name: deleteTarget.category?.name ?? 'transaction' })}
               </Text>
               <View style={styles.deleteBarActions}>
                 <TouchableOpacity onPress={() => setDeleteTarget(null)} style={styles.deleteBarBtn}>
-                  <Text style={[styles.deleteBarBtnText, { color: C.textSecondary }]}>Cancel</Text>
+                  <Text style={[styles.deleteBarBtnText, { color: C.textSecondary }]}>{t('insights.deleteCancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(deleteTarget)} style={styles.deleteBarBtn}>
-                  <Text style={[styles.deleteBarBtnText, { color: C.danger }]}>Delete</Text>
+                  <Text style={[styles.deleteBarBtnText, { color: C.danger }]}>{t('insights.deleteConfirmBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -323,12 +325,12 @@ export default function InsightsScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>🧾</Text>
               <Text style={[styles.emptyTitle, { color: C.textSecondary }]}>
-                {search ? 'No results found' : 'No transactions yet'}
+                {search ? t('insights.noResults') : t('insights.noTransactions')}
               </Text>
               <Text style={[styles.emptyText, { color: C.textTertiary }]}>
                 {search
-                  ? 'Try a different search term'
-                  : 'Tap + to add your first transaction'}
+                  ? t('insights.tryDifferent')
+                  : t('insights.tapToAdd')}
               </Text>
             </View>
           ) : (
@@ -378,7 +380,7 @@ export default function InsightsScreen() {
         >
           {/* Net change card */}
           <View style={[styles.card, { backgroundColor: C.surface }, Shadow.sm]}>
-            <Text style={[styles.cardSub, { color: C.textSecondary }]}>Net change · last 12 months</Text>
+            <Text style={[styles.cardSub, { color: C.textSecondary }]}>{t('insights.netChange')}</Text>
             <Text style={[styles.netAmt, { color: netChange >= 0 ? C.textPrimary : C.danger }]}>
               {netChange < 0 ? '−' : ''}{formatCurrency(Math.abs(netChange), currency)}
             </Text>
@@ -393,7 +395,7 @@ export default function InsightsScreen() {
           {insights.length > 0 && (
             <>
               <View style={styles.sectionHeaderRow}>
-                <Text style={[styles.sectionTitleLarge, { color: C.textPrimary }]}>Smart insights</Text>
+                <Text style={[styles.sectionTitleLarge, { color: C.textPrimary }]}>{t('insights.smartInsights')}</Text>
               </View>
               <View style={styles.insightsList}>
                 {insights.slice(0, 4).map((insight, i) => (
@@ -417,8 +419,8 @@ export default function InsightsScreen() {
 
           {/* By category */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitleLarge, { color: C.textPrimary }]}>By category</Text>
-            <Text style={[styles.sectionSub, { color: C.textSecondary }]}>This month</Text>
+            <Text style={[styles.sectionTitleLarge, { color: C.textPrimary }]}>{t('insights.byCategory')}</Text>
+            <Text style={[styles.sectionSub, { color: C.textSecondary }]}>{t('insights.thisMonth')}</Text>
           </View>
           {topCats.length > 0 ? (
             <View style={[styles.listCard, { backgroundColor: C.surface }, Shadow.sm]}>
@@ -455,7 +457,7 @@ export default function InsightsScreen() {
             </View>
           ) : (
             <View style={[styles.emptyCard, { backgroundColor: C.surface, borderColor: C.border }, Shadow.sm]}>
-              <Text style={[styles.emptyText, { color: C.textTertiary }]}>No expenses this month yet</Text>
+              <Text style={[styles.emptyText, { color: C.textTertiary }]}>{t('insights.noExpenses')}</Text>
             </View>
           )}
         </ScrollView>

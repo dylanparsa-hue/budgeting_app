@@ -2,24 +2,29 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch,
   Modal, FlatList, KeyboardAvoidingView, Platform, TextInput,
-  Alert, Share,
+  Alert, Share, I18nManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { format, subMonths, startOfMonth, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 import { useAuthStore }          from '../../src/stores/authStore';
 import { useTransactionStore }   from '../../src/stores/transactionStore';
 import { useAppSettingsStore }   from '../../src/stores/appSettingsStore';
+import type { ThemeMode }        from '../../src/stores/appSettingsStore';
 import { useTheme }              from '../../src/theme/ThemeContext';
 import { Typography }            from '../../src/theme/typography';
 import { BorderRadius, Shadow, Spacing } from '../../src/theme/spacing';
 import {
   DollarSign, Calendar, Bell, UserCircle, Users, Download,
   HelpCircle, Star, FileText, LogOut, Trash2,
+  Sun, Moon, SunMoon, Globe, Check, X,
 } from 'lucide-react-native';
 import { Storage } from '../../src/services/storage';
 import { useRecurringStore } from '../../src/stores/recurringStore';
+import { SUPPORTED_LANGUAGES, isRTL } from '../../src/i18n';
+import type { LanguageCode } from '../../src/i18n';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -46,48 +51,28 @@ const CURRENCIES = [
   { code: 'BRL', label: 'Brazilian Real',        symbol: 'R$'  },
 ];
 
-const FAQ_ITEMS = [
-  {
-    q: 'How does the Smart Savings Planner work?',
-    a: 'It averages your income and expenses over the last 3 months, subtracts a safety buffer, then distributes what\'s left across your goals — deadline goals get funded first.',
-  },
-  {
-    q: 'Why is my "Saved" amount different from my bank balance?',
-    a: '"Saved" shows only money intentionally allocated to savings goals. Your available balance is tracked separately in the Dashboard.',
-  },
-  {
-    q: 'How do I add a recurring bill?',
-    a: 'Go to the Plan tab and tap "+ Add", or open any goal and check the Savings Planner for a shortcut. Recurring items are used to calculate your true disposable income.',
-  },
-  {
-    q: 'What does the Safety Buffer do?',
-    a: 'It reserves a percentage of your income (10–25%) as a cushion before allocating to goals. This prevents you from over-committing and running short for unexpected expenses.',
-  },
-  {
-    q: 'Can I track multiple currencies?',
-    a: 'All transactions are stored in your chosen currency. You can change your currency in Settings — existing amounts won\'t be converted.',
-  },
-  {
-    q: 'How do I delete a transaction?',
-    a: 'Open the Transactions tab, find the entry, and swipe left or tap the edit icon to delete it.',
-  },
-  {
-    q: 'What is "Tracking since" used for?',
-    a: 'It tells the Savings Planner when you started using the app, so old empty months before you began tracking don\'t drag down your income and expense averages.',
-  },
-];
-
-function buildMonthOptions() {
+function buildMonthOptions(thisMonthLabel: string) {
   const now = new Date();
   return Array.from({ length: 37 }, (_, i) => {
     const d = startOfMonth(subMonths(now, i));
     return {
-      label: i === 0 ? `This month (${format(d, 'MMM yyyy')})` : format(d, 'MMMM yyyy'),
+      label: i === 0 ? thisMonthLabel.replace('{{date}}', format(d, 'MMM yyyy')) : format(d, 'MMMM yyyy'),
       value: format(d, 'yyyy-MM-dd'),
     };
   });
 }
-const MONTH_OPTIONS = buildMonthOptions();
+
+// Theme option definition
+interface ThemeOption {
+  mode:  ThemeMode;
+  Icon:  React.ComponentType<any>;
+  labelKey: string;
+}
+const THEME_OPTIONS: ThemeOption[] = [
+  { mode: 'light',  Icon: Sun,     labelKey: 'appearance.light'  },
+  { mode: 'dark',   Icon: Moon,    labelKey: 'appearance.dark'   },
+  { mode: 'system', Icon: SunMoon, labelKey: 'appearance.system' },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -101,12 +86,16 @@ type ActiveSheet =
   | null;
 
 export default function ProfileScreen() {
-  const C = useTheme();
+  const C  = useTheme();
+  const { t } = useTranslation();
+
   const { profile, user, logout, saveProfile }             = useAuthStore();
   const { transactions }                                   = useTransactionStore();
   const {
     trackingStartDate, setTrackingStartDate,
     notificationsEnabled, setNotificationsEnabled,
+    themeMode, setThemeMode,
+    language,  setLanguage,
     load: loadSettings,
   } = useAppSettingsStore();
 
@@ -124,12 +113,14 @@ export default function ProfileScreen() {
   useEffect(() => { loadSettings(); }, []);
 
   const currency    = profile?.currency ?? 'MYR';
-  const displayName = profile?.full_name ?? user?.email ?? 'User';
-  const initials    = displayName.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+  const displayName = profile?.full_name ?? user?.email ?? t('account.yourName');
+  const initials    = displayName.split(' ').slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? '').join('');
 
   const trackingLabel = trackingStartDate
     ? format(parseISO(trackingStartDate), 'MMMM yyyy')
-    : 'Not set';
+    : t('preferences.trackingNotSet');
+
+  const MONTH_OPTIONS = buildMonthOptions(t('preferences.thisMonth'));
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -141,14 +132,14 @@ export default function ProfileScreen() {
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
-    if (!trimmed) { setNameError('Name cannot be empty.'); return; }
+    if (!trimmed) { setNameError(t('account.nameEmpty')); return; }
     setSavingName(true);
     setNameError('');
     try {
       await saveProfile({ full_name: trimmed });
       setActiveSheet(null);
     } catch {
-      setNameError('Could not save. Please try again.');
+      setNameError(t('account.couldNotSave'));
     } finally {
       setSavingName(false);
     }
@@ -160,81 +151,92 @@ export default function ProfileScreen() {
     try {
       await saveProfile({ currency: code });
     } catch {
-      Alert.alert('Error', 'Could not update currency. Please try again.');
+      Alert.alert(t('common.error'), t('account.couldNotUpdateCurrency'));
     } finally {
       setSavingCurrency(false);
       setActiveSheet(null);
     }
   };
 
+  const handleSelectLanguage = async (lang: LanguageCode) => {
+    if (lang === language) return;
+    await setLanguage(lang);
+    // If RTL direction changes, apply RTL layout and prompt user to restart
+    const willBeRTL = isRTL(lang);
+    const isCurrentlyRTL = I18nManager.isRTL;
+    if (willBeRTL !== isCurrentlyRTL) {
+      I18nManager.allowRTL(willBeRTL);
+      I18nManager.forceRTL(willBeRTL);
+      Alert.alert(
+        t('language.restartTitle'),
+        t('language.restartMessage'),
+        [{ text: t('common.gotIt') }],
+      );
+    }
+  };
+
   const handleExportData = async () => {
     if (transactions.length === 0) {
-      Alert.alert('No data', 'You have no transactions to export yet.');
+      Alert.alert(t('account.noData'), t('account.noTransactions'));
       return;
     }
     const header = 'Date,Type,Amount,Category,Note,Payment Method,Tags';
-    const rows = transactions.map(t => [
-      t.date,
-      t.type,
-      t.amount.toFixed(2),
-      t.category?.name ?? '',
-      `"${(t.note ?? '').replace(/"/g, '""')}"`,
-      t.payment_method ?? '',
-      (t.tags ?? []).join(';'),
+    const rows = transactions.map(tx => [
+      tx.date,
+      tx.type,
+      tx.amount.toFixed(2),
+      tx.category?.name ?? '',
+      `"${(tx.note ?? '').replace(/"/g, '""')}"`,
+      tx.payment_method ?? '',
+      (tx.tags ?? []).join(';'),
     ].join(','));
     const csv = [header, ...rows].join('\n');
     try {
-      await Share.share({
-        message: csv,
-        title:   'Budget Transactions Export',
-      });
+      await Share.share({ message: csv, title: 'Budget Transactions Export' });
     } catch {
       // user dismissed — no-op
     }
   };
 
   const handleRateApp = () => {
-    // Replace with your actual App Store / Play Store ID when published
     const url = Platform.OS === 'ios'
       ? 'https://apps.apple.com/app/idYOUR_APP_ID'
       : 'https://play.google.com/store/apps/details?id=com.yourcompany.budgetapp';
     Linking.openURL(url).catch(() =>
-      Alert.alert('Could not open store', 'Please search for the app manually.'),
+      Alert.alert(t('account.couldNotOpenStore'), t('account.searchManually')),
     );
   };
 
   const handlePrivacyPolicy = () => {
     Linking.openURL('https://yourcompany.com/privacy').catch(() =>
-      Alert.alert('Could not open link', 'Visit yourcompany.com/privacy in your browser.'),
+      Alert.alert(t('account.couldNotOpenLink'), t('account.visitPrivacy')),
     );
   };
 
   const handleFamilyGroups = () => {
     Alert.alert(
-      '👨‍👩‍👧‍👦 Family Groups',
-      'Shared budgets and group expense tracking is coming in a future update. Stay tuned!',
-      [{ text: 'Got it' }],
+      t('account.familyGroupsTitle'),
+      t('account.familyGroupsMessage'),
+      [{ text: t('common.gotIt') }],
     );
   };
 
   const handleClearLocalData = () => {
     Alert.alert(
-      'Clear all local data?',
-      'This wipes all cached transactions, categories, recurring items, and goals from this device. Your cloud data (Supabase) is not affected — pull-to-refresh after clearing to sync a fresh copy.',
+      t('account.clearCacheTitle'),
+      t('account.clearCacheMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Clear cache',
+          text: t('account.clearCacheAction'),
           style: 'destructive',
           onPress: async () => {
-            // Wipe every @budget:* key in AsyncStorage
             await Storage.clear();
-            // Reset in-memory Zustand stores so UI reflects the cleared state
             useTransactionStore.setState({ transactions: [], categories: [], lastSyncAt: null });
             useRecurringStore.setState({ items: [], loaded: false });
             Alert.alert(
-              '✅ Local cache cleared',
-              'Go to the Dashboard and pull down to refresh — it will sync your latest data from the server.',
+              t('account.clearCacheSuccess'),
+              t('account.clearCacheSuccessMsg'),
             );
           },
         },
@@ -250,18 +252,18 @@ export default function ProfileScreen() {
 
         {/* Page title */}
         <View style={styles.pageHeader}>
-          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>Account</Text>
-          <Text style={[styles.pageSub, { color: C.textSecondary }]}>Profile & settings.</Text>
+          <Text style={[styles.pageTitle, { color: C.textPrimary }]}>{t('account.title')}</Text>
+          <Text style={[styles.pageSub, { color: C.textSecondary }]}>{t('account.subtitle')}</Text>
         </View>
 
         {/* Profile card */}
         <View style={[styles.profileCard, Shadow.sm, { backgroundColor: C.surface }]}>
           <View style={[styles.initialsCircle, { backgroundColor: C.primaryLight }]}>
-            <Text style={[styles.initialsText, { color: '#4F8D2D' }]}>{initials || '👤'}</Text>
+            <Text style={[styles.initialsText, { color: '#4F8D2D' }]}>{initials || '?'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: C.textPrimary }]}>
-              {profile?.full_name ?? 'Your Name'}
+              {profile?.full_name ?? t('account.yourName')}
             </Text>
             <Text style={[styles.profileEmail, { color: C.textTertiary }]}>
               {user?.email ?? ''}
@@ -271,29 +273,95 @@ export default function ProfileScreen() {
             onPress={openEditProfile}
             style={[styles.editBtn, { borderColor: C.border }]}
           >
-            <Text style={[styles.editBtnText, { color: C.textPrimary }]}>Edit</Text>
+            <Text style={[styles.editBtnText, { color: C.textPrimary }]}>{t('common.edit')}</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Appearance */}
+        <SettingsGroup title={t('appearance.title')} C={C}>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map(opt => {
+              const selected = themeMode === opt.mode;
+              return (
+                <TouchableOpacity
+                  key={opt.mode}
+                  onPress={() => setThemeMode(opt.mode)}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.themeOption,
+                    { borderColor: selected ? C.primary : C.border, backgroundColor: selected ? C.primaryLight : C.surfaceRaised },
+                  ]}
+                >
+                  <opt.Icon
+                    size={20}
+                    color={selected ? C.primary : C.textTertiary}
+                    strokeWidth={selected ? 2.5 : 1.8}
+                  />
+                  <Text style={[styles.themeLabel, { color: selected ? C.primary : C.textSecondary, fontWeight: selected ? '700' : '500' }]}>
+                    {t(opt.labelKey)}
+                  </Text>
+                  {selected && (
+                    <View style={[styles.themeCheck, { backgroundColor: C.primary }]}>
+                      <Check size={9} color="#fff" strokeWidth={3} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </SettingsGroup>
+
+        {/* Language */}
+        <SettingsGroup title={t('language.title')} C={C}>
+          <View style={styles.langGrid}>
+            {SUPPORTED_LANGUAGES.map(lang => {
+              const selected = language === lang.code;
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  onPress={() => handleSelectLanguage(lang.code as LanguageCode)}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.langOption,
+                    { borderColor: selected ? C.primary : C.border, backgroundColor: selected ? C.primaryLight : C.surfaceRaised },
+                  ]}
+                >
+                  <Text style={[styles.langNative, { color: selected ? C.primary : C.textPrimary }]}>
+                    {lang.nativeLabel}
+                  </Text>
+                  <Text style={[styles.langEnglish, { color: selected ? C.primary : C.textTertiary }]}>
+                    {lang.label}
+                  </Text>
+                  {selected && (
+                    <View style={[styles.langCheck, { backgroundColor: C.primary }]}>
+                      <Check size={9} color="#fff" strokeWidth={3} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </SettingsGroup>
+
         {/* Preferences */}
-        <SettingsGroup title="Preferences" C={C}>
+        <SettingsGroup title={t('preferences.title')} C={C}>
           <SettingRow
             icon={DollarSign}
-            label="Currency"
+            label={t('preferences.currency')}
             value={currency}
             onPress={() => setActiveSheet('currency')}
             C={C}
           />
           <SettingRow
             icon={Calendar}
-            label="Tracking since"
+            label={t('preferences.trackingSince')}
             value={trackingLabel}
             onPress={() => setActiveSheet('tracking')}
             C={C}
           />
           <SettingRow
             icon={Bell}
-            label="Budget alerts"
+            label={t('preferences.budgetAlerts')}
             C={C}
             right={
               <Switch
@@ -307,39 +375,39 @@ export default function ProfileScreen() {
         </SettingsGroup>
 
         {/* Account */}
-        <SettingsGroup title="Account" C={C}>
-          <SettingRow icon={UserCircle} label="Edit profile"   onPress={openEditProfile}      C={C} />
-          <SettingRow icon={Users}     label="Family groups"  onPress={handleFamilyGroups}    C={C} />
-          <SettingRow icon={Download}  label="Export data"    onPress={handleExportData}      C={C} />
+        <SettingsGroup title={t('sections.account')} C={C}>
+          <SettingRow icon={UserCircle} label={t('rows.editProfile')}   onPress={openEditProfile}   C={C} />
+          <SettingRow icon={Users}     label={t('rows.familyGroups')}  onPress={handleFamilyGroups} C={C} />
+          <SettingRow icon={Download}  label={t('rows.exportData')}    onPress={handleExportData}   C={C} />
         </SettingsGroup>
 
         {/* Data */}
-        <SettingsGroup title="Data" C={C}>
+        <SettingsGroup title={t('sections.data')} C={C}>
           <SettingRow
             icon={Trash2}
-            label="Clear local cache"
+            label={t('rows.clearCache')}
             onPress={handleClearLocalData}
             C={C}
           />
         </SettingsGroup>
 
         {/* Support */}
-        <SettingsGroup title="Support" C={C}>
-          <SettingRow icon={HelpCircle} label="Help & FAQ"     onPress={() => setActiveSheet('faq')} C={C} />
-          <SettingRow icon={Star}      label="Rate the app"   onPress={handleRateApp}               C={C} />
-          <SettingRow icon={FileText}  label="Privacy policy" onPress={handlePrivacyPolicy}          C={C} />
+        <SettingsGroup title={t('sections.support')} C={C}>
+          <SettingRow icon={HelpCircle} label={t('rows.helpFaq')}     onPress={() => setActiveSheet('faq')} C={C} />
+          <SettingRow icon={Star}       label={t('rows.rateApp')}     onPress={handleRateApp}               C={C} />
+          <SettingRow icon={FileText}   label={t('rows.privacyPolicy')} onPress={handlePrivacyPolicy}        C={C} />
         </SettingsGroup>
 
         {/* Logout */}
         {logoutPending ? (
           <View style={[styles.logoutConfirm, { backgroundColor: C.dangerLight }]}>
-            <Text style={[styles.logoutConfirmText, { color: C.danger }]}>Sign out of your account?</Text>
+            <Text style={[styles.logoutConfirmText, { color: C.danger }]}>{t('account.signOutConfirm')}</Text>
             <View style={styles.logoutConfirmActions}>
               <TouchableOpacity onPress={() => setLogoutPending(false)} style={styles.logoutConfirmBtn}>
-                <Text style={[styles.logoutConfirmBtnText, { color: C.textSecondary }]}>Cancel</Text>
+                <Text style={[styles.logoutConfirmBtnText, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={logout} style={styles.logoutConfirmBtn}>
-                <Text style={[styles.logoutConfirmBtnText, { color: C.danger }]}>Sign out</Text>
+                <Text style={[styles.logoutConfirmBtnText, { color: C.danger }]}>{t('account.signOut')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -348,11 +416,11 @@ export default function ProfileScreen() {
             onPress={() => setLogoutPending(true)}
             style={[styles.logoutBtn, { backgroundColor: C.dangerLight }]}
           >
-            <Text style={[styles.logoutText, { color: C.danger }]}>Sign out</Text>
+            <Text style={[styles.logoutText, { color: C.danger }]}>{t('account.signOut')}</Text>
           </TouchableOpacity>
         )}
 
-        <Text style={[styles.version, { color: C.textTertiary }]}>Budget v1.0.0</Text>
+        <Text style={[styles.version, { color: C.textTertiary }]}>{t('account.version')}</Text>
         <View style={{ height: Spacing[10] }} />
       </ScrollView>
 
@@ -360,8 +428,8 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={activeSheet === 'currency'}
         onClose={() => setActiveSheet(null)}
-        title="Select Currency"
-        subtitle="All amounts stay in their current value — only the symbol changes"
+        title={t('selectCurrency')}
+        subtitle={t('preferences.currencySubtitle')}
       >
         <FlatList
           data={CURRENCIES}
@@ -376,12 +444,12 @@ export default function ProfileScreen() {
                 style={[styles.sheetItem, selected && { backgroundColor: C.primaryLight }]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetItemTitle, selected && { color: C.primary }]}>
+                  <Text style={[styles.sheetItemTitle, { color: C.textPrimary }, selected && { color: C.primary }]}>
                     {item.symbol}  {item.code}
                   </Text>
-                  <Text style={styles.sheetItemSub}>{item.label}</Text>
+                  <Text style={[styles.sheetItemSub, { color: C.textTertiary }]}>{item.label}</Text>
                 </View>
-                {selected && <Text style={[styles.sheetCheck, { color: C.primary }]}>✓</Text>}
+                {selected && <Check size={18} color={C.primary} strokeWidth={2.5} />}
               </TouchableOpacity>
             );
           }}
@@ -392,17 +460,17 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={activeSheet === 'tracking'}
         onClose={() => setActiveSheet(null)}
-        title="When did you start tracking?"
-        subtitle="Averages only use data from this month onwards"
+        title={t('whenTracking')}
+        subtitle={t('preferences.trackingSinceSub')}
       >
         <TouchableOpacity
           onPress={() => { setTrackingStartDate(null); setActiveSheet(null); }}
           style={[styles.sheetItem, !trackingStartDate && { backgroundColor: C.primaryLight }]}
         >
-          <Text style={[styles.sheetItemTitle, !trackingStartDate && { color: C.primary }]}>
-            Use all available data
+          <Text style={[styles.sheetItemTitle, { color: C.textPrimary }, !trackingStartDate && { color: C.primary }]}>
+            {t('common.useAllData')}
           </Text>
-          {!trackingStartDate && <Text style={[styles.sheetCheck, { color: C.primary }]}>✓</Text>}
+          {!trackingStartDate && <Check size={18} color={C.primary} strokeWidth={2.5} />}
         </TouchableOpacity>
         <FlatList
           data={MONTH_OPTIONS}
@@ -415,10 +483,10 @@ export default function ProfileScreen() {
                 onPress={() => { setTrackingStartDate(item.value); setActiveSheet(null); }}
                 style={[styles.sheetItem, selected && { backgroundColor: C.primaryLight }]}
               >
-                <Text style={[styles.sheetItemTitle, selected && { color: C.primary }]}>
+                <Text style={[styles.sheetItemTitle, { color: C.textPrimary }, selected && { color: C.primary }]}>
                   {item.label}
                 </Text>
-                {selected && <Text style={[styles.sheetCheck, { color: C.primary }]}>✓</Text>}
+                {selected && <Check size={18} color={C.primary} strokeWidth={2.5} />}
               </TouchableOpacity>
             );
           }}
@@ -429,8 +497,8 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={activeSheet === 'editProfile'}
         onClose={() => setActiveSheet(null)}
-        title="Edit Profile"
-        subtitle="Your display name shown across the app"
+        title={t('account.editProfile')}
+        subtitle={t('account.editProfileSub')}
       >
         <View style={styles.editProfileBody}>
           {!!nameError && (
@@ -438,11 +506,11 @@ export default function ProfileScreen() {
               <Text style={[styles.errorText, { color: C.danger }]}>{nameError}</Text>
             </View>
           )}
-          <Text style={[styles.inputLabel, { color: C.textPrimary }]}>Display Name</Text>
+          <Text style={[styles.inputLabel, { color: C.textPrimary }]}>{t('account.displayName')}</Text>
           <TextInput
             value={nameInput}
             onChangeText={v => { setNameInput(v); setNameError(''); }}
-            placeholder="Your name"
+            placeholder={t('account.namePlaceholder')}
             placeholderTextColor={C.textTertiary}
             style={[styles.nameInput, {
               color: C.textPrimary,
@@ -459,14 +527,14 @@ export default function ProfileScreen() {
               onPress={() => setActiveSheet(null)}
               style={[styles.editCancelBtn, { backgroundColor: C.surfaceRaised }]}
             >
-              <Text style={[styles.editCancelText, { color: C.textSecondary }]}>Cancel</Text>
+              <Text style={[styles.editCancelText, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSaveName}
               disabled={savingName}
               style={[styles.editSaveBtn, { backgroundColor: C.primary }]}
             >
-              <Text style={styles.editSaveText}>{savingName ? 'Saving…' : 'Save'}</Text>
+              <Text style={styles.editSaveText}>{savingName ? t('common.saving') : t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -476,12 +544,12 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={activeSheet === 'faq'}
         onClose={() => setActiveSheet(null)}
-        title="Help & FAQ"
-        subtitle="Common questions about the app"
+        title={t('faq.title')}
+        subtitle={t('faq.subtitle')}
       >
         <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
-          {FAQ_ITEMS.map((item, i) => (
-            <FaqItem key={i} q={item.q} a={item.a} />
+          {Array.from({ length: 7 }, (_, i) => i + 1).map(n => (
+            <FaqItem key={n} q={t(`faq.q${n}`)} a={t(`faq.a${n}`)} />
           ))}
           <View style={{ height: Spacing[8] }} />
         </ScrollView>
@@ -502,11 +570,8 @@ function BottomSheet({
   children: React.ReactNode;
 }) {
   const C = useTheme();
-  // In dark mode surface (#1E293B) blends into background (#0F172A) —
-  // use surfaceRaised (#334155) so the sheet clearly lifts off the page.
-  const sheetBg      = C.isDark ? '#2D3B50' : '#FFFFFF';
-  const sheetItemBg  = C.isDark ? '#374357' : '#F8FAFC';
-  const closeBtnBg   = C.isDark ? '#3D4F66' : '#F1F5F9';
+  const sheetBg    = C.isDark ? '#2D3B50' : '#FFFFFF';
+  const closeBtnBg = C.isDark ? '#3D4F66' : '#F1F5F9';
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -523,9 +588,7 @@ function BottomSheet({
           shadowRadius: 16,
           elevation: 24,
         }]}>
-          {/* Drag handle */}
           <View style={styles.sheetHandle} />
-
           <View style={[styles.sheetHeader, { borderBottomColor: C.isDark ? '#3D4F66' : C.divider }]}>
             <View style={{ flex: 1, gap: Spacing[1] }}>
               <Text style={[styles.sheetTitle, { color: C.textPrimary }]}>{title}</Text>
@@ -535,7 +598,7 @@ function BottomSheet({
               onPress={onClose}
               style={[styles.sheetCloseBtn, { backgroundColor: closeBtnBg }]}
             >
-              <Text style={[styles.sheetCloseBtnText, { color: C.textSecondary }]}>✕</Text>
+              <X size={14} color={C.textSecondary} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           {children}
@@ -581,7 +644,7 @@ function SettingsGroup({ title, children, C }: { title: string; children: React.
 }
 
 interface RowProps {
-  icon:     string | React.ComponentType<any>;
+  icon:     React.ComponentType<any>;
   label:    string;
   value?:   string;
   right?:   React.ReactNode;
@@ -589,8 +652,7 @@ interface RowProps {
   C:        any;
 }
 
-function SettingRow({ icon, label, value, right, onPress, C }: RowProps) {
-  const IconComp = typeof icon !== 'string' ? icon as any : null;
+function SettingRow({ icon: IconComp, label, value, right, onPress, C }: RowProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -599,10 +661,7 @@ function SettingRow({ icon, label, value, right, onPress, C }: RowProps) {
       style={[styles.settingRow, { borderBottomColor: C.divider }]}
     >
       <View style={[styles.rowIconBox, { backgroundColor: C.surfaceRaised }]}>
-        {IconComp
-          ? React.createElement(IconComp, { size: 18, color: C.textSecondary, strokeWidth: 2 })
-          : <Text style={styles.rowIcon}>{icon as string}</Text>
-        }
+        <IconComp size={18} color={C.textSecondary} strokeWidth={2} />
       </View>
       <Text style={[styles.rowLabel, { color: C.textPrimary }]}>{label}</Text>
       <View style={styles.rowRight}>
@@ -644,13 +703,74 @@ const styles = StyleSheet.create({
     fontFamily: Typography.headingSmall.fontFamily,
     fontSize: 20, fontWeight: '700',
   },
-  profileName: { ...Typography.titleMedium },
+  profileName:  { ...Typography.titleMedium },
   profileEmail: { ...Typography.bodySmall, marginTop: 2 },
   editBtn: {
     borderWidth: 1.5, borderRadius: 9999,
     paddingHorizontal: 14, paddingVertical: 6,
   },
   editBtnText: { fontSize: 13, fontWeight: '600' },
+
+  // Theme selector
+  themeRow: {
+    flexDirection: 'row',
+    gap: Spacing[2],
+    padding: Spacing[3],
+  },
+  themeOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[1.5],
+    paddingVertical: Spacing[3],
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    position: 'relative',
+  },
+  themeLabel: {
+    ...Typography.labelSmall,
+    textAlign: 'center',
+  },
+  themeCheck: {
+    position: 'absolute',
+    top: 6, right: 6,
+    width: 16, height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Language selector
+  langGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing[2],
+    padding: Spacing[3],
+  },
+  langOption: {
+    width: '47%',
+    paddingVertical: Spacing[3],
+    paddingHorizontal: Spacing[3],
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    gap: Spacing[0.5],
+    position: 'relative',
+  },
+  langNative: {
+    ...Typography.titleSmall,
+    fontSize: 15,
+  },
+  langEnglish: {
+    ...Typography.caption,
+  },
+  langCheck: {
+    position: 'absolute',
+    top: 6, right: 6,
+    width: 16, height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // Settings groups
   group:      { gap: Spacing[2] },
@@ -665,7 +785,6 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center', marginRight: 4,
   },
-  rowIcon:  { fontSize: 18 },
   rowLabel: { flex: 1, ...Typography.bodyMedium },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing[2] },
   rowValue: { ...Typography.bodySmall },
@@ -701,11 +820,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: Spacing[3],
     padding: Spacing[5], borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sheetTitle:        { ...Typography.titleSmall },
-  sheetSub:          { ...Typography.caption },
-  sheetCloseBtn:     { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  sheetCloseBtnText: { fontSize: 14 },
-  sheetList:         { flexGrow: 0 },
+  sheetTitle:    { ...Typography.titleSmall },
+  sheetSub:      { ...Typography.caption },
+  sheetCloseBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  sheetList:     { flexGrow: 0 },
   sheetItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing[5], paddingVertical: Spacing[4],
@@ -713,7 +831,6 @@ const styles = StyleSheet.create({
   },
   sheetItemTitle: { ...Typography.bodyMedium },
   sheetItemSub:   { ...Typography.caption, marginTop: 2 },
-  sheetCheck:     { fontSize: 18 },
 
   // Edit profile sheet
   editProfileBody: { padding: Spacing[5], gap: Spacing[4] },

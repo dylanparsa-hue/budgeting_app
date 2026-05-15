@@ -14,7 +14,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  KeyboardAvoidingView, Platform, TextInput, Alert,
+  KeyboardAvoidingView, Platform, TextInput, Alert, I18nManager,
 } from 'react-native';
 import { SafeAreaView }      from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -29,6 +29,7 @@ import { DEFAULT_GOAL_COLORS } from '../../src/utils/categories';
 import { GOAL_ICON_OPTIONS, X, Trash2, AlertTriangle, Check } from '../../src/lib/icons';
 import { parseCurrencyInput, formatCurrency } from '../../src/utils/currency';
 import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -36,6 +37,7 @@ import { hapticSelect, hapticSuccess } from '../../src/utils/haptics';
 
 export default function AddGoalModal() {
   const C = useTheme();
+  const { t } = useTranslation();
   const { user, profile }                    = useAuthStore();
   const { goals, addGoal, updateGoal, removeGoal } = useGoalStore();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -102,12 +104,12 @@ export default function AddGoalModal() {
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = () => {
     Alert.alert(
-      'Delete goal',
-      `Remove "${existing?.name ?? 'this goal'}"? This cannot be undone.`,
+      t('addGoal.deleteConfirm'),
+      `${t('addGoal.deletePrompt')} "${existing?.name ?? t('addGoal.thisGoal')}"?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('addGoal.cancel'), style: 'cancel' },
         {
-          text: 'Delete', style: 'destructive',
+          text: t('addGoal.delete'), style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
             try {
@@ -139,7 +141,7 @@ export default function AddGoalModal() {
             <X size={16} color={C.textSecondary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={[S.headerTitle, { color: C.textPrimary }]}>
-            {isEditing ? 'Edit Goal' : 'New Goal'}
+            {isEditing ? t('addGoal.titleEdit') : t('addGoal.titleAdd')}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -170,10 +172,10 @@ export default function AddGoalModal() {
             </View>
             <View style={{ flex: 1, gap: Spacing[1.5] }}>
               <Text style={[S.previewName, { color: C.textPrimary }]} numberOfLines={1}>
-                {name || 'My Goal'}
+                {name || t('addGoal.myGoalPlaceholder')}
               </Text>
               <Text style={[S.previewAmounts, { color: C.textSecondary }]}>
-                {formatCurrency(currentNum, currency)} saved of {symbol}{targetStr || '0'}
+                {formatCurrency(currentNum, currency)} {t('addGoal.savedOf')} {symbol}{targetStr || '0'}
               </Text>
               <View style={[S.previewBarTrack, { backgroundColor: color + '25' }]}>
                 <View style={[S.previewBarFill, { width: `${pct}%` as any, backgroundColor: color }]} />
@@ -184,11 +186,11 @@ export default function AddGoalModal() {
 
           {/* Name */}
           <View style={S.fieldGroup}>
-            <Text style={[S.label, { color: C.textPrimary }]}>Goal Name</Text>
+            <Text style={[S.label, { color: C.textPrimary }]}>{t('addGoal.goalName')}</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Emergency Fund, Vacation…"
+              placeholder={t('addGoal.goalNamePlaceholder')}
               placeholderTextColor={C.textTertiary}
               style={[S.textInput, { color: C.textPrimary, backgroundColor: C.surfaceRaised, borderColor: C.border }]}
               autoFocus={!isEditing}
@@ -200,7 +202,7 @@ export default function AddGoalModal() {
           {/* Target & current amounts side by side */}
           <View style={S.amountsRow}>
             <View style={[S.fieldGroup, { flex: 1 }]}>
-              <Text style={[S.label, { color: C.textPrimary }]}>Target</Text>
+              <Text style={[S.label, { color: C.textPrimary }]}>{t('addGoal.targetAmount')}</Text>
               <View style={[S.amountWrap, { backgroundColor: C.surfaceRaised, borderColor: C.border }]}>
                 <Text style={[S.amountSymbol, { color: C.textTertiary }]}>{symbol}</Text>
                 <TextInput
@@ -216,7 +218,7 @@ export default function AddGoalModal() {
             </View>
 
             <View style={[S.fieldGroup, { flex: 1 }]}>
-              <Text style={[S.label, { color: C.textPrimary }]}>Saved So Far</Text>
+              <Text style={[S.label, { color: C.textPrimary }]}>{t('addGoal.currentSavings')}</Text>
               <View style={[S.amountWrap, { backgroundColor: C.surfaceRaised, borderColor: C.border }]}>
                 <Text style={[S.amountSymbol, { color: C.textTertiary }]}>{symbol}</Text>
                 <TextInput
@@ -234,7 +236,7 @@ export default function AddGoalModal() {
 
           {/* Icon picker */}
           <View style={S.fieldGroup}>
-            <Text style={[S.label, { color: C.textPrimary }]}>Icon</Text>
+            <Text style={[S.label, { color: C.textPrimary }]}>{t('addGoal.icon')}</Text>
             <View style={S.iconGrid}>
               {GOAL_ICON_OPTIONS.map(({ key, Icon }) => (
                 <TouchableOpacity
@@ -254,7 +256,7 @@ export default function AddGoalModal() {
 
           {/* Color picker */}
           <View style={S.fieldGroup}>
-            <Text style={[S.label, { color: C.textPrimary }]}>Color</Text>
+            <Text style={[S.label, { color: C.textPrimary }]}>{t('addGoal.color')}</Text>
             <View style={S.colorRow}>
               {DEFAULT_GOAL_COLORS.map(c => (
                 <TouchableOpacity
@@ -274,7 +276,7 @@ export default function AddGoalModal() {
 
           {/* Save */}
           <Button
-            label={isSaving ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Goal')}
+            label={isSaving ? t('finances.saving') : (isEditing ? t('addGoal.saveChanges') : t('addGoal.createGoal'))}
             onPress={handleSave}
             loading={isSaving}
             fullWidth
@@ -291,7 +293,7 @@ export default function AddGoalModal() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={16} color={C.danger} strokeWidth={2} />
-                <Text style={[S.deleteBtnText, { color: C.danger }]}>{isDeleting ? 'Deleting…' : 'Delete Goal'}</Text>
+                <Text style={[S.deleteBtnText, { color: C.danger }]}>{isDeleting ? t('addTransaction.deleting') : t('addGoal.delete')}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -348,6 +350,7 @@ const S = StyleSheet.create({
     ...Typography.bodyLarge,
     borderWidth: 1, borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing[4], paddingVertical: Spacing[3],
+    textAlign: (I18nManager.isRTL ? 'right' : 'left') as 'right' | 'left',
   },
 
   // Amount fields
