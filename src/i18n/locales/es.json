@@ -167,7 +167,14 @@
     "smartInsights": "Análisis inteligentes",
     "byCategory": "Por categoría",
     "thisMonth": "Este mes",
-    "noExpenses": "Aún no hay gastos este mes"
+    "noExpenses": "Aún no hay gastos este mes",
+    "moneyIn": "Ingresos",
+    "moneyOut": "Gastos",
+    "viewDetails": "Ver Detalles",
+    "noIncome": "Sin ingresos este mes aún",
+    "spendingOverview": "Resumen de Gastos",
+    "other": "Otros",
+    "total": "Total"
   },
   "finances": {
     "tabBudget": "Presupuesto",

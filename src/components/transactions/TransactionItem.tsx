@@ -74,14 +74,53 @@ export function TransactionItem({ transaction, currency = 'MYR', onPress, onDele
 }
 
 const styles = StyleSheet.create({
-  wrapper:   { flexDirection: 'row', alignItems: 'center', gap: Spacing[2] },
-  row:       { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing[2.5], gap: Spacing[3] },
-  iconBubble:{ width: 44, height: 44, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
-  details:   { flex: 1, gap: Spacing[0.5] },
-  catName:   { ...Typography.titleSmall },
-  note:      { ...Typography.bodySmall },
-  dateText:  { ...Typography.caption },
-  right:     { alignItems: 'flex-end', gap: Spacing[0.5] },
-  amount:    { ...Typography.titleSmall, fontVariant: ['tabular-nums'] as any },
-  deleteBtn: { width: 34, height: 34, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  wrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing[3],
+    gap: Spacing[3],
+    minWidth: 0,
+  },
+  iconBubble: {
+    width: 46,
+    height: 46,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  details: {
+    flex: 1,
+    gap: Spacing[0.5],
+    minWidth: 0,
+  },
+  catName:  { ...Typography.titleSmall },
+  note:     { ...Typography.bodySmall },
+  dateText: { ...Typography.caption },
+  right: {
+    alignItems: 'flex-end',
+    gap: Spacing[0.5],
+    flexShrink: 0,
+    paddingLeft: Spacing[2],
+  },
+  amount: {
+    ...Typography.titleSmall,
+    fontVariant: ['tabular-nums'] as any,
+  },
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing[2],
+    flexShrink: 0,
+  },
 });

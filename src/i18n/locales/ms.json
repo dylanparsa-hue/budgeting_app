@@ -167,7 +167,14 @@
     "smartInsights": "Analitik pintar",
     "byCategory": "Mengikut kategori",
     "thisMonth": "Bulan ini",
-    "noExpenses": "Tiada perbelanjaan bulan ini lagi"
+    "noExpenses": "Tiada perbelanjaan bulan ini lagi",
+    "moneyIn": "Wang Masuk",
+    "moneyOut": "Wang Keluar",
+    "viewDetails": "Lihat Butiran",
+    "noIncome": "Tiada pendapatan bulan ini lagi",
+    "spendingOverview": "Ringkasan Perbelanjaan",
+    "other": "Lain-lain",
+    "total": "Jumlah"
   },
   "finances": {
     "tabBudget": "Belanjawan",

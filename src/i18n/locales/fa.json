@@ -167,7 +167,14 @@
     "smartInsights": "تحلیل‌های هوشمند",
     "byCategory": "بر اساس دسته",
     "thisMonth": "این ماه",
-    "noExpenses": "هنوز هزینه‌ای این ماه ندارید"
+    "noExpenses": "هنوز هزینه‌ای این ماه ندارید",
+    "moneyIn": "درآمد",
+    "moneyOut": "هزینه",
+    "viewDetails": "مشاهده جزئیات",
+    "noIncome": "هنوز درآمدی این ماه ندارید",
+    "spendingOverview": "خلاصه هزینه‌ها",
+    "other": "سایر",
+    "total": "مجموع"
   },
   "finances": {
     "tabBudget": "بودجه",

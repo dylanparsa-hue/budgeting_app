@@ -167,7 +167,14 @@
     "smartInsights": "Smart insights",
     "byCategory": "By category",
     "thisMonth": "This month",
-    "noExpenses": "No expenses this month yet"
+    "noExpenses": "No expenses this month yet",
+    "moneyIn": "Money In",
+    "moneyOut": "Money Out",
+    "viewDetails": "View Details",
+    "noIncome": "No income this month yet",
+    "spendingOverview": "Spending Overview",
+    "other": "Other",
+    "total": "Total"
   },
   "finances": {
     "tabBudget": "Budget",
