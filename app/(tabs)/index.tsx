@@ -190,7 +190,7 @@ export default function HomeScreen() {
   const curIncome = useMemo(() =>
     transactions
       .filter(t => t.type === 'income' && getBudgetMonthKey(t) === curMonthKey)
-      .reduce((s, t) => s + t.amount, 0),
+      .reduce((s, t) => s + Number(t.amount), 0),
     [transactions]);
 
   // Budget-month expenses: uses getExpenseBudgetContributions so that
@@ -213,8 +213,8 @@ export default function HomeScreen() {
   const cashBalance = useMemo(() => {
     let bal = 0;
     for (const t of transactions) {
-      if (t.type === 'income') bal += t.amount;
-      else bal -= t.amount;
+      if (t.type === 'income') bal += Number(t.amount);
+      else bal -= Number(t.amount);
     }
     return bal;
   }, [transactions]);
@@ -230,7 +230,7 @@ export default function HomeScreen() {
       if (t.type === 'income') {
         const key = getBudgetMonthKey(t);
         if (key <= curMonthKey) continue;
-        netByKey.set(key, (netByKey.get(key) ?? 0) + t.amount);
+        netByKey.set(key, (netByKey.get(key) ?? 0) + Number(t.amount));
       } else if (t.type === 'expense') {
         // Each contribution key may span the current month AND future months
         // (split expenses have two keys: primary month + overflow month).
@@ -257,7 +257,7 @@ export default function HomeScreen() {
   const totalSpentCur = curSpend;
   // True savings = intentional goal allocations only
   const totalInGoals   = useMemo(
-    () => goals.reduce((s, g) => s + g.current_amount, 0),
+    () => goals.reduce((s, g) => s + Number(g.current_amount), 0),
     [goals]);
 
   // ── Selected-month stats ──────────────────────────────────────────────────
@@ -290,7 +290,7 @@ export default function HomeScreen() {
         t.category_id === b.category_id &&
         new Date(t.date).getMonth() + 1 === MONTH &&
         new Date(t.date).getFullYear() === YEAR)
-      .reduce((s, t) => s + t.amount, 0),
+      .reduce((s, t) => s + Number(t.amount), 0),
   })), [budgets, transactions]);
 
   const totalBudgeted = budgetsWithSpend.reduce((s, b) => s + b.amount, 0);

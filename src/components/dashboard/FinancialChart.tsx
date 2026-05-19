@@ -122,8 +122,8 @@ function buildData(
 ): DataPoint[] {
   const now = new Date();
 
-  const incomeIn   = (arr: Transaction[]) => arr.filter(t => t.type === 'income' ).reduce((s, t) => s + t.amount, 0);
-  const expensesIn = (arr: Transaction[]) => arr.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const incomeIn   = (arr: Transaction[]) => arr.filter(t => t.type === 'income' ).reduce((s, t) => s + Number(t.amount), 0);
+  const expensesIn = (arr: Transaction[]) => arr.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
   const inRange    = (t: Transaction, start: Date, end: Date) =>
     isWithinInterval(new Date(t.date), { start, end });
 

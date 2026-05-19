@@ -148,7 +148,7 @@ export function getMonthBudgetIncome(
 ): number {
   return transactions
     .filter(t => t.type === 'income' && getBudgetMonthKey(t) === monthKey)
-    .reduce((s, t: any) => s + t.amount, 0);
+    .reduce((s, t: any) => s + Number(t.amount), 0);
 }
 
 /**
@@ -164,7 +164,7 @@ export function getFutureMonthReservedIncome(
 ): number {
   return transactions
     .filter(t => isEarlyReceivedIncome(t) && getBudgetMonthKey(t) > currentMonthKey)
-    .reduce((s, t: any) => s + t.amount, 0);
+    .reduce((s, t: any) => s + Number(t.amount), 0);
 }
 
 // ─── Split-expense budget contributions ──────────────────────────────────────
