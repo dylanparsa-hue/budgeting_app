@@ -35,7 +35,7 @@
     "familyGroupsTitle": "Family Groups",
     "familyGroupsMessage": "Shared budgets and group expense tracking is coming in a future update. Stay tuned!",
     "clearCacheTitle": "Clear all local data?",
-    "clearCacheMessage": "This wipes all cached transactions, categories, recurring items, and goals from this device. Your cloud data (Supabase) is not affected — pull-to-refresh after clearing to sync a fresh copy.",
+    "clearCacheMessage": "This wipes all cached transactions, categories, recurring items, and goals from this device. Your server data is not affected — pull-to-refresh after clearing to sync a fresh copy.",
     "clearCacheAction": "Clear cache",
     "clearCacheSuccess": "Local cache cleared",
     "clearCacheSuccessMsg": "Go to the Dashboard and pull down to refresh — it will sync your latest data from the server.",

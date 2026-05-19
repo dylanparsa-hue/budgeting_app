@@ -1,15 +1,16 @@
 -- ============================================================
--- Budget App — Initial Schema
+-- Budget App — Initial Schema (Self-hosted PostgreSQL)
 -- ============================================================
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ─────────────────────────────────────────
--- PROFILES  (extends Supabase auth.users)
+-- USERS  (replaces Supabase auth.users + profiles)
 -- ─────────────────────────────────────────
-CREATE TABLE profiles (
-  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
   full_name     TEXT,
   avatar_url    TEXT,
   currency      TEXT NOT NULL DEFAULT 'MYR',
@@ -17,26 +18,28 @@ CREATE TABLE profiles (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Auto-create profile on signup
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  INSERT INTO profiles (id, full_name)
-  VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name');
-  RETURN NEW;
-END;
-$$;
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+-- ─────────────────────────────────────────
+-- REFRESH TOKENS  (for JWT rotation)
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user   ON refresh_tokens (user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expiry ON refresh_tokens (expires_at);
 
 -- ─────────────────────────────────────────
 -- CATEGORIES
 -- ─────────────────────────────────────────
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID REFERENCES profiles(id) ON DELETE CASCADE,  -- NULL = system default
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,  -- NULL = system default
   name        TEXT NOT NULL,
   icon        TEXT NOT NULL DEFAULT '💰',
   color       TEXT NOT NULL DEFAULT '#6366F1',
@@ -47,7 +50,8 @@ CREATE TABLE categories (
 );
 
 -- Seed default categories (system-level, user_id = NULL)
-INSERT INTO categories (name, icon, color, type, is_default, sort_order) VALUES
+INSERT INTO categories (name, icon, color, type, is_default, sort_order)
+SELECT * FROM (VALUES
   ('Food',          '🍔', '#F97316', 'expense', TRUE, 1),
   ('Transport',     '🚗', '#3B82F6', 'expense', TRUE, 2),
   ('Bills',         '⚡', '#EAB308', 'expense', TRUE, 3),
@@ -59,18 +63,20 @@ INSERT INTO categories (name, icon, color, type, is_default, sort_order) VALUES
   ('Salary',        '💼', '#10B981', 'income',  TRUE, 9),
   ('Freelance',     '💻', '#6366F1', 'income',  TRUE, 10),
   ('Investment',    '📈', '#059669', 'income',  TRUE, 11),
-  ('Gift',          '🎁', '#F43F5E', 'income',  TRUE, 12);
+  ('Gift',          '🎁', '#F43F5E', 'income',  TRUE, 12)
+) AS v(name, icon, color, type, is_default, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL LIMIT 1);
 
 -- ─────────────────────────────────────────
 -- FAMILY GROUPS
 -- ─────────────────────────────────────────
-CREATE TABLE family_groups (
+CREATE TABLE IF NOT EXISTS family_groups (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
   description  TEXT,
   icon         TEXT NOT NULL DEFAULT '👨‍👩‍👧‍👦',
   color        TEXT NOT NULL DEFAULT '#6366F1',
-  created_by   UUID NOT NULL REFERENCES profiles(id),
+  created_by   UUID NOT NULL REFERENCES users(id),
   invite_code  TEXT UNIQUE DEFAULT UPPER(SUBSTRING(gen_random_uuid()::TEXT, 1, 8)),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -79,10 +85,10 @@ CREATE TABLE family_groups (
 -- ─────────────────────────────────────────
 -- GROUP MEMBERS
 -- ─────────────────────────────────────────
-CREATE TABLE group_members (
+CREATE TABLE IF NOT EXISTS group_members (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id   UUID NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
-  user_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role       TEXT NOT NULL CHECK (role IN ('admin', 'member')) DEFAULT 'member',
   joined_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (group_id, user_id)
@@ -91,9 +97,9 @@ CREATE TABLE group_members (
 -- ─────────────────────────────────────────
 -- TRANSACTIONS
 -- ─────────────────────────────────────────
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   group_id       UUID REFERENCES family_groups(id) ON DELETE SET NULL,
   category_id    UUID REFERENCES categories(id) ON DELETE SET NULL,
   type           TEXT NOT NULL CHECK (type IN ('income', 'expense')),
@@ -107,16 +113,16 @@ CREATE TABLE transactions (
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_transactions_user_date  ON transactions (user_id, date DESC);
-CREATE INDEX idx_transactions_group_date ON transactions (group_id, date DESC);
-CREATE INDEX idx_transactions_category   ON transactions (category_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_date  ON transactions (user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_group_date ON transactions (group_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_category   ON transactions (category_id);
 
 -- ─────────────────────────────────────────
 -- BUDGETS
 -- ─────────────────────────────────────────
-CREATE TABLE budgets (
+CREATE TABLE IF NOT EXISTS budgets (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
   group_id     UUID REFERENCES family_groups(id) ON DELETE CASCADE,
   category_id  UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   amount       NUMERIC(14,2) NOT NULL CHECK (amount > 0),
@@ -125,7 +131,6 @@ CREATE TABLE budgets (
   year         SMALLINT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- Either personal OR group, not both
   CHECK ((user_id IS NOT NULL) != (group_id IS NOT NULL)),
   UNIQUE (user_id, category_id, period, month, year),
   UNIQUE (group_id, category_id, period, month, year)
@@ -134,9 +139,9 @@ CREATE TABLE budgets (
 -- ─────────────────────────────────────────
 -- SAVINGS GOALS
 -- ─────────────────────────────────────────
-CREATE TABLE savings_goals (
+CREATE TABLE IF NOT EXISTS savings_goals (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
   group_id        UUID REFERENCES family_groups(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
   icon            TEXT NOT NULL DEFAULT '🎯',
@@ -151,101 +156,69 @@ CREATE TABLE savings_goals (
 );
 
 -- ─────────────────────────────────────────
--- ROW LEVEL SECURITY
+-- FUNCTION: join_group_by_invite_code
 -- ─────────────────────────────────────────
+CREATE OR REPLACE FUNCTION join_group_by_invite_code(
+  p_invite_code TEXT,
+  p_user_id     UUID
+) RETURNS UUID LANGUAGE plpgsql AS $$
+DECLARE
+  v_group_id UUID;
+BEGIN
+  SELECT id INTO v_group_id
+  FROM family_groups
+  WHERE invite_code = UPPER(p_invite_code);
 
-ALTER TABLE profiles       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE family_groups  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE group_members  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE budgets        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE savings_goals  ENABLE ROW LEVEL SECURITY;
+  IF v_group_id IS NULL THEN
+    RAISE EXCEPTION 'Invalid invite code';
+  END IF;
 
--- Profiles: only own row
-CREATE POLICY "profiles_own" ON profiles
-  FOR ALL USING (auth.uid() = id);
+  INSERT INTO group_members (group_id, user_id, role)
+  VALUES (v_group_id, p_user_id, 'member')
+  ON CONFLICT (group_id, user_id) DO NOTHING;
 
--- Categories: own + system defaults
-CREATE POLICY "categories_read" ON categories
-  FOR SELECT USING (user_id IS NULL OR user_id = auth.uid());
-CREATE POLICY "categories_write" ON categories
-  FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY "categories_update" ON categories
-  FOR UPDATE USING (user_id = auth.uid());
-CREATE POLICY "categories_delete" ON categories
-  FOR DELETE USING (user_id = auth.uid());
-
--- Family groups: members can view
-CREATE POLICY "groups_member_select" ON family_groups
-  FOR SELECT USING (
-    created_by = auth.uid() OR
-    id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-  );
-CREATE POLICY "groups_creator_write" ON family_groups
-  FOR INSERT WITH CHECK (created_by = auth.uid());
-CREATE POLICY "groups_creator_update" ON family_groups
-  FOR UPDATE USING (created_by = auth.uid());
-
--- Group members
-CREATE POLICY "members_select" ON group_members
-  FOR SELECT USING (
-    user_id = auth.uid() OR
-    group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-  );
-CREATE POLICY "members_insert" ON group_members
-  FOR INSERT WITH CHECK (
-    group_id IN (SELECT id FROM family_groups WHERE created_by = auth.uid())
-    OR user_id = auth.uid()  -- joining via invite code
-  );
-CREATE POLICY "members_delete" ON group_members
-  FOR DELETE USING (user_id = auth.uid());
-
--- Transactions: own + group member
-CREATE POLICY "transactions_select" ON transactions
-  FOR SELECT USING (
-    user_id = auth.uid() OR
-    group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-  );
-CREATE POLICY "transactions_insert" ON transactions
-  FOR INSERT WITH CHECK (
-    user_id = auth.uid() AND (
-      group_id IS NULL OR
-      group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-    )
-  );
-CREATE POLICY "transactions_update" ON transactions
-  FOR UPDATE USING (user_id = auth.uid());
-CREATE POLICY "transactions_delete" ON transactions
-  FOR DELETE USING (user_id = auth.uid());
-
--- Budgets
-CREATE POLICY "budgets_select" ON budgets
-  FOR SELECT USING (
-    user_id = auth.uid() OR
-    group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-  );
-CREATE POLICY "budgets_write" ON budgets
-  FOR ALL USING (
-    user_id = auth.uid() OR
-    group_id IN (
-      SELECT group_id FROM group_members WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Savings goals
-CREATE POLICY "goals_select" ON savings_goals
-  FOR SELECT USING (
-    user_id = auth.uid() OR
-    group_id IN (SELECT group_id FROM group_members WHERE user_id = auth.uid())
-  );
-CREATE POLICY "goals_write" ON savings_goals
-  FOR ALL USING (user_id = auth.uid());
+  RETURN v_group_id;
+END;
+$$;
 
 -- ─────────────────────────────────────────
--- REALTIME (for family group sync)
+-- AUTO-UPDATE updated_at TRIGGER FUNCTION
 -- ─────────────────────────────────────────
-ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE budgets;
-ALTER PUBLICATION supabase_realtime ADD TABLE savings_goals;
-ALTER PUBLICATION supabase_realtime ADD TABLE group_members;
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+-- ─────────────────────────────────────────
+-- TRIGGERS (idempotent: drop first)
+-- CREATE OR REPLACE TRIGGER requires PG ≥ 14.
+-- DROP IF EXISTS + CREATE works on PG 12+.
+-- ─────────────────────────────────────────
+DROP TRIGGER IF EXISTS trg_users_updated_at        ON users;
+DROP TRIGGER IF EXISTS trg_transactions_updated_at  ON transactions;
+DROP TRIGGER IF EXISTS trg_budgets_updated_at       ON budgets;
+DROP TRIGGER IF EXISTS trg_savings_goals_updated_at ON savings_goals;
+DROP TRIGGER IF EXISTS trg_family_groups_updated_at ON family_groups;
+
+CREATE TRIGGER trg_users_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_transactions_updated_at
+  BEFORE UPDATE ON transactions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_budgets_updated_at
+  BEFORE UPDATE ON budgets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_savings_goals_updated_at
+  BEFORE UPDATE ON savings_goals
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_family_groups_updated_at
+  BEFORE UPDATE ON family_groups
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();

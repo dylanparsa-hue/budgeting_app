@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SavingsGoal } from '../types';
-import { fetchGoals, createGoal, updateGoal, deleteGoal } from '../services/supabase';
+import { fetchGoals, createGoal, updateGoal, deleteGoal } from '../services/api';
 import { Storage, StorageKeys } from '../services/storage';
 
 interface GoalState {

@@ -1,8 +1,29 @@
 import { create } from 'zustand';
-import { Session, User } from '@supabase/supabase-js';
 import { Profile } from '../types';
-import { supabase, fetchProfile, signIn, signOut, signUp, updateProfile } from '../services/supabase';
+import {
+  getSession,
+  onAuthStateChange,
+  fetchProfile,
+  signIn,
+  signOut,
+  signUp,
+  updateProfile,
+} from '../services/api';
 import { Storage, StorageKeys } from '../services/storage';
+
+// ── Local types replacing Supabase SDK types ────────────────────────────────
+
+interface Session {
+  access_token: string;
+  refresh_token: string;
+  user: User;
+}
+
+interface User {
+  id: string;
+  email: string;
+  user_metadata: { full_name?: string };
+}
 
 interface AuthState {
   session:     Session | null;
@@ -42,22 +63,30 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     set({ isLoading: true });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await getSession();
+      const session = data?.session as Session | null;
       if (session?.user) {
         const { data: profile } = await fetchProfile(session.user.id);
         set({ session, user: session.user, profile: profile ?? null });
         loadUserData(session.user.id); // non-blocking
       }
 
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        set({ session, user: session?.user ?? null });
-        if (session?.user) {
-          const { data: profile } = await fetchProfile(session.user.id);
-          set({ profile: profile ?? null });
-          loadUserData(session.user.id); // non-blocking
-        } else {
-          set({ profile: null });
-          if (event === 'SIGNED_OUT') await Storage.clear();
+      onAuthStateChange(async (event, sessionData) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          // Re-fetch user info
+          const { data: sessionResult } = await getSession();
+          const newSession = sessionResult?.session as Session | null;
+          set({ session: newSession, user: newSession?.user ?? null });
+          if (newSession?.user) {
+            const { data: profile } = await fetchProfile(newSession.user.id);
+            set({ profile: profile ?? null });
+            if (event === 'SIGNED_IN') {
+              loadUserData(newSession.user.id); // non-blocking
+            }
+          }
+        } else if (event === 'SIGNED_OUT') {
+          set({ session: null, user: null, profile: null });
+          await Storage.clear();
         }
       });
     } finally {
@@ -69,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const { error } = await signIn(email, password);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     } finally {
       set({ isLoading: false });
     }
@@ -79,7 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const { error } = await signUp(email, password, fullName);
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     } finally {
       set({ isLoading: false });
     }
@@ -96,7 +125,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { user } = useAuthStore.getState();
     if (!user) throw new Error('Not logged in');
     const { error } = await updateProfile(user.id, updates);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     set(state => ({
       profile: state.profile ? { ...state.profile, ...updates } : null,
     }));
