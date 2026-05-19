@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Budget } from '../types';
-import { fetchBudgets, upsertBudget, deleteBudget } from '../services/supabase';
+import { fetchBudgets, upsertBudget, deleteBudget } from '../services/api';
 import { Storage, StorageKeys } from '../services/storage';
 
 interface BudgetState {

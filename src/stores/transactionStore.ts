@@ -9,7 +9,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-} from '../services/supabase';
+} from '../services/api';
 import { Storage, StorageKeys } from '../services/storage';
 import { getBudgetMonthKey, getExpenseBudgetContributions } from '../utils/budgetMonth';
 
