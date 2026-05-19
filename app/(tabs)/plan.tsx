@@ -170,13 +170,13 @@ export default function PlanScreen() {
   const monthIncome = useMemo(() =>
     transactions
       .filter(t => t.type === 'income' && isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }))
-      .reduce((s, t) => s + t.amount, 0),
+      .reduce((s, t) => s + Number(t.amount), 0),
   [transactions]);
 
   const monthExpenses = useMemo(() =>
     transactions
       .filter(t => t.type === 'expense' && isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }))
-      .reduce((s, t) => s + t.amount, 0),
+      .reduce((s, t) => s + Number(t.amount), 0),
   [transactions]);
 
   const fixedMonthly = useMemo(() =>

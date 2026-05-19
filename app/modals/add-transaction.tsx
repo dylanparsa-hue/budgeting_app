@@ -294,8 +294,8 @@ export default function AddTransactionModal() {
   const cashBalance = useMemo(() => {
     let bal = 0;
     for (const t of transactions) {
-      if (t.type === 'income')  bal += t.amount;
-      else                      bal -= t.amount;
+      if (t.type === 'income')  bal += Number(t.amount);
+      else                      bal -= Number(t.amount);
     }
     return bal;
   }, [transactions]);
@@ -312,7 +312,7 @@ export default function AddTransactionModal() {
       // Skip the transaction being edited so we don't double-count
       if (isEditing && existing && t.id === existing.id) continue;
       if (t.type === 'income' && getBudgetMonthKey(t) === expenseMonthKey) {
-        income += t.amount;
+        income += Number(t.amount);
       } else if (t.type === 'expense') {
         // Use contributions so budget_split tags correctly apportion existing
         // over-budget expenses — avoids showing false negative remaining budget.
@@ -335,7 +335,7 @@ export default function AddTransactionModal() {
     for (const t of transactions) {
       if (t.type === 'income') {
         const key = getBudgetMonthKey(t);
-        if (key > expenseMonthKey) net += t.amount;
+        if (key > expenseMonthKey) net += Number(t.amount);
       } else if (t.type === 'expense') {
         // Each contribution key may be in a future month (split overflow or pre-paid obligation).
         for (const [key, amount] of Object.entries(getExpenseBudgetContributions(t))) {
@@ -581,8 +581,8 @@ export default function AddTransactionModal() {
     // already include the income we just saved).
     let currentBal = 0;
     for (const t of transactions) {
-      if (t.type === 'income') currentBal += t.amount;
-      else currentBal -= t.amount;
+      if (t.type === 'income') currentBal += Number(t.amount);
+      else currentBal -= Number(t.amount);
     }
     if (toPay.length > 0 && totalToPay > currentBal) {
       const canPayAmt = currentBal;
@@ -616,8 +616,8 @@ export default function AddTransactionModal() {
       // Offer to pre-pay next month — but only if there's balance remaining
       let balAfter = 0;
       for (const t of useTransactionStore.getState().transactions) {
-        if (t.type === 'income') balAfter += t.amount;
-        else balAfter -= t.amount;
+        if (t.type === 'income') balAfter += Number(t.amount);
+        else balAfter -= Number(t.amount);
       }
       const nextMonthTotal = activeItems.reduce((s, i) => s + i.amount, 0);
       if (balAfter >= nextMonthTotal) {
@@ -648,8 +648,8 @@ export default function AddTransactionModal() {
         // Balance check for pre-pay
         let bal = 0;
         for (const t of useTransactionStore.getState().transactions) {
-          if (t.type === 'income') bal += t.amount;
-          else bal -= t.amount;
+          if (t.type === 'income') bal += Number(t.amount);
+          else bal -= Number(t.amount);
         }
         const total = toPrePay.reduce((s, i) => s + i.amount, 0);
         if (total <= bal) {
@@ -895,8 +895,8 @@ export default function AddTransactionModal() {
     // Current all-time balance (optimistic — income was already saved)
     let currentBal = 0;
     for (const t of transactions) {
-      if (t.type === 'income') currentBal += t.amount;
-      else currentBal -= t.amount;
+      if (t.type === 'income') currentBal += Number(t.amount);
+      else currentBal -= Number(t.amount);
     }
 
     const checkedTotal = unpaidItems
@@ -918,7 +918,7 @@ export default function AddTransactionModal() {
 
       let balNow = 0;
       for (const t of transactions) {
-        if (t.type === 'income') balNow += t.amount;
+        if (t.type === 'income') balNow += Number(t.amount);
         else balNow -= t.amount;
       }
       const canPrePay = prePayTotal <= balNow;

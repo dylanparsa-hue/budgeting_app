@@ -335,16 +335,16 @@ export default function GoalsScreen() {
 
   const activeGoals    = goals.filter(g => !g.is_completed);
   const completedGoals = goals.filter(g => g.is_completed);
-  const totalSaved     = goals.reduce((s, g) => s + g.current_amount, 0);
-  const totalTarget    = goals.reduce((s, g) => s + g.target_amount, 0);
+  const totalSaved     = goals.reduce((s, g) => s + Number(g.current_amount), 0);
+  const totalTarget    = goals.reduce((s, g) => s + Number(g.target_amount), 0);
   const overallPct     = totalTarget > 0 ? Math.min((totalSaved / totalTarget) * 100, 100) : 0;
 
   // All-time balance (income − expenses across all transactions)
   const currentBalance = useMemo(() => {
     let bal = 0;
     for (const t of transactions) {
-      if (t.type === 'income') bal += t.amount;
-      else bal -= t.amount;
+      if (t.type === 'income') bal += Number(t.amount);
+      else bal -= Number(t.amount);
     }
     return bal;
   }, [transactions]);
@@ -356,7 +356,7 @@ export default function GoalsScreen() {
         t.type === 'expense' && t.category_id === b.category_id &&
         new Date(t.date).getMonth() + 1 === MONTH && new Date(t.date).getFullYear() === YEAR,
       )
-      .reduce((s, t) => s + t.amount, 0),
+      .reduce((s, t) => s + Number(t.amount), 0),
   })), [budgets, transactions]);
 
   // Debt helpers

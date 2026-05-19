@@ -138,6 +138,29 @@ async function apiFetch<T>(
   }
 }
 
+// ── Numeric field coercion ───────────────────────────────────────────────────
+// PostgreSQL NUMERIC comes back as a string in older cached data or if the
+// server type parser isn't configured. Coerce known numeric fields so
+// arithmetic with `+` never becomes string concatenation.
+const NUMERIC_FIELDS = ['amount', 'target_amount', 'current_amount', 'sort_order'];
+
+function coerceRow(row: any): any {
+  if (!row || typeof row !== 'object') return row;
+  for (const key of NUMERIC_FIELDS) {
+    if (key in row && typeof row[key] === 'string') {
+      row[key] = parseFloat(row[key]) || 0;
+    }
+  }
+  return row;
+}
+
+/** Ensure every row in an API response has numeric fields as numbers. */
+function coerceNumericFields<T>(data: T): T {
+  if (Array.isArray(data)) return data.map(coerceRow) as T;
+  if (data && typeof data === 'object') return coerceRow(data);
+  return data;
+}
+
 // ── Auth helpers (match old supabase.ts exports) ────────────────────────────
 
 export const signUp = async (email: string, password: string, fullName: string) => {
@@ -249,57 +272,84 @@ export const deleteCategory = (id: string) =>
 
 // ── Transactions ─────────────────────────────────────────────────────────────
 
-export const fetchTransactions = (userId: string, limit = 100) =>
-  apiFetch<any[]>(`/transactions?limit=${limit}`);
+export const fetchTransactions = async (userId: string, limit = 100) => {
+  const res = await apiFetch<any[]>(`/transactions?limit=${limit}`);
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const fetchGroupTransactions = (groupId: string, limit = 100) =>
-  apiFetch<any[]>(`/transactions?group_id=${groupId}&limit=${limit}`);
+export const fetchGroupTransactions = async (groupId: string, limit = 100) => {
+  const res = await apiFetch<any[]>(`/transactions?group_id=${groupId}&limit=${limit}`);
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const createTransaction = (data: Record<string, unknown>) =>
-  apiFetch<any>('/transactions', {
+export const createTransaction = async (data: Record<string, unknown>) => {
+  const res = await apiFetch<any>('/transactions', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const updateTransaction = (id: string, data: Record<string, unknown>) =>
-  apiFetch<any>(`/transactions/${id}`, {
+export const updateTransaction = async (id: string, data: Record<string, unknown>) => {
+  const res = await apiFetch<any>(`/transactions/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
 export const deleteTransaction = (id: string) =>
   apiFetch<any>(`/transactions/${id}`, { method: 'DELETE' });
 
 // ── Budgets ──────────────────────────────────────────────────────────────────
 
-export const fetchBudgets = (userId: string, month: number, year: number) =>
-  apiFetch<any[]>(`/budgets?month=${month}&year=${year}`);
+export const fetchBudgets = async (userId: string, month: number, year: number) => {
+  const res = await apiFetch<any[]>(`/budgets?month=${month}&year=${year}`);
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const upsertBudget = (data: Record<string, unknown>) =>
-  apiFetch<any>('/budgets', {
+export const upsertBudget = async (data: Record<string, unknown>) => {
+  const res = await apiFetch<any>('/budgets', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
 export const deleteBudget = (id: string) =>
   apiFetch<any>(`/budgets/${id}`, { method: 'DELETE' });
 
 // ── Savings Goals ────────────────────────────────────────────────────────────
 
-export const fetchGoals = (userId: string) =>
-  apiFetch<any[]>('/goals');
+export const fetchGoals = async (userId: string) => {
+  const res = await apiFetch<any[]>('/goals');
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const createGoal = (data: Record<string, unknown>) =>
-  apiFetch<any>('/goals', {
+export const createGoal = async (data: Record<string, unknown>) => {
+  const res = await apiFetch<any>('/goals', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
-export const updateGoal = (id: string, data: Record<string, unknown>) =>
-  apiFetch<any>(`/goals/${id}`, {
+export const updateGoal = async (id: string, data: Record<string, unknown>) => {
+  const res = await apiFetch<any>(`/goals/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
 
 export const deleteGoal = (id: string) =>
   apiFetch<any>(`/goals/${id}`, { method: 'DELETE' });

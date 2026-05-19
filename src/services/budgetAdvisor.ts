@@ -167,7 +167,7 @@ export function generateBudgetPlan({
     // counts toward the month the user assigned it to.
     const mi = transactions
       .filter(t => t.type === 'income' && getBudgetMonthKey(t) === monthKey)
-      .reduce((s, t) => s + t.amount, 0);
+      .reduce((s, t) => s + Number(t.amount), 0);
     if (mi > 0) { totalIncome += mi; incomeMonths++; }
   }
   const monthlyIncome = incomeMonths > 0 ? totalIncome / incomeMonths : 0;
@@ -188,7 +188,7 @@ export function generateBudgetPlan({
     .forEach(t => {
       const cat = categories.find(c => c.id === t.category_id);
       const key = cat ? matchCategoryKey(cat.name) : 'others';
-      curSpendByKey.set(key, (curSpendByKey.get(key) ?? 0) + t.amount);
+      curSpendByKey.set(key, (curSpendByKey.get(key) ?? 0) + Number(t.amount));
     });
 
   // ── 4. 3-month average spend per key (non-recurring only) ─────────────────
@@ -203,7 +203,7 @@ export function generateBudgetPlan({
       .forEach(t => {
         const cat = categories.find(c => c.id === t.category_id);
         const key = cat ? matchCategoryKey(cat.name) : 'others';
-        avgSpendByKey.set(key, (avgSpendByKey.get(key) ?? 0) + t.amount);
+        avgSpendByKey.set(key, (avgSpendByKey.get(key) ?? 0) + Number(t.amount));
       });
   }
   for (const [key, total] of avgSpendByKey.entries()) {

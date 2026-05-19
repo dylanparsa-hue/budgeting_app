@@ -60,7 +60,7 @@ function avgMonthly(
       return d >= start && d <= end;
     });
 
-    total += bucket.reduce((s, t) => s + t.amount, 0);
+    total += bucket.reduce((s, t) => s + Number(t.amount), 0);
   }
 
   return total / lookback;

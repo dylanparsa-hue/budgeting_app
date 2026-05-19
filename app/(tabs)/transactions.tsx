@@ -108,8 +108,8 @@ export default function TransactionsScreen() {
     const income = transactions.filter(
       t => t.type === 'income' && isAfter(new Date(t.date), starts[statPeriod])
     );
-    const manualSpent = expenses.reduce((s, t) => s + t.amount, 0);
-    const earned      = income.reduce((s, t) => s + t.amount, 0);
+    const manualSpent = expenses.reduce((s, t) => s + Number(t.amount), 0);
+    const earned      = income.reduce((s, t) => s + Number(t.amount), 0);
     return {
       spent:  manualSpent + periodBills,          // manual + recurring bills
       earned,

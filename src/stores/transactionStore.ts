@@ -45,7 +45,11 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   loadFromCache: async (userId) => {
     const cached = await Storage.get<Transaction[]>(StorageKeys.TRANSACTIONS);
-    if (cached) set({ transactions: cached });
+    if (cached) {
+      // Coerce amounts from strings (stale cache from before the NUMERIC fix)
+      const fixed = cached.map(t => ({ ...t, amount: Number(t.amount) || 0 }));
+      set({ transactions: fixed });
+    }
     const cachedCats = await Storage.get<Category[]>(StorageKeys.CATEGORIES);
     if (cachedCats) set({ categories: cachedCats });
   },
@@ -209,8 +213,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       if (portion > 0) expensePortions.push({ category_id: t.category_id ?? null, amount: portion });
     }
 
-    const totalIncome   = incomeFiltered.reduce((s, t) => s + t.amount, 0);
-    const totalExpenses = expensePortions.reduce((s, e) => s + e.amount, 0);
+    const totalIncome   = incomeFiltered.reduce((s, t) => s + Number(t.amount), 0);
+    const totalExpenses = expensePortions.reduce((s, e) => s + Number(e.amount), 0);
     const balance       = totalIncome - totalExpenses;
     const savingsRate   = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 

@@ -1,7 +1,15 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// ── Type parser fix ──────────────────────────────────────────────────────────
+// PostgreSQL NUMERIC (OID 1700) is returned as a string by default to avoid
+// JavaScript floating-point precision loss. For a budgeting app with 2 decimal
+// places, JavaScript's 64-bit float is more than sufficient (safe up to ±9
+// quadrillion). Without this, `amount` fields arrive as strings and `+` does
+// string concatenation → produces NaN when displayed.
+types.setTypeParser(1700, (val: string) => parseFloat(val));
 
 // ── Startup validation ───────────────────────────────────────────────────────
 if (!process.env.DATABASE_URL) {
