@@ -370,3 +370,62 @@ export const joinGroupByCode = (inviteCode: string, _userId: string) =>
     method: 'POST',
     body: JSON.stringify({ invite_code: inviteCode }),
   });
+
+// ── Debts ────────────────────────────────────────────────────────────────────
+
+export const fetchDebts = async () => {
+  const res = await apiFetch<any[]>('/debts');
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const createDebt = async (data: Record<string, unknown>) => {
+  const res = await apiFetch<any>('/debts', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const updateDebt = async (id: string, data: Record<string, unknown>) => {
+  const res = await apiFetch<any>(`/debts/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const deleteDebt = (id: string) =>
+  apiFetch<any>(`/debts/${id}`, { method: 'DELETE' });
+
+// ── Recurring Expenses ───────────────────────────────────────────────────────
+
+export const fetchRecurring = async () => {
+  const res = await apiFetch<any[]>('/recurring');
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const createRecurring = async (data: Record<string, unknown>) => {
+  const res = await apiFetch<any>('/recurring', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const updateRecurring = async (id: string, data: Record<string, unknown>) => {
+  const res = await apiFetch<any>(`/recurring/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  if (res.data) res.data = coerceNumericFields(res.data);
+  return res;
+};
+
+export const deleteRecurring = (id: string) =>
+  apiFetch<any>(`/recurring/${id}`, { method: 'DELETE' });
+

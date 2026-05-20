@@ -26,6 +26,7 @@ export interface RecurringExpense {
   category:         RecurringCategory;
   frequency:        RecurringFrequency;
   deductFromIncome: boolean;
+  nextDueDate?:     string | null; // ISO date string (YYYY-MM-DD)
 }
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'ewallet' | 'other';
 export type BudgetPeriod = 'monthly' | 'weekly' | 'yearly';

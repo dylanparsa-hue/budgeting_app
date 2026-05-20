@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { useNotificationStore, DEFAULT_PREFS } from '../../src/stores/notificationStore';
+import { initPushNotifications, hasNotificationPermission } from '../../src/services/notificationService';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { Typography } from '../../src/theme/typography';
@@ -18,8 +19,12 @@ import type { LucideIcon } from 'lucide-react-native';
 export default function NotificationSettingsScreen() {
   const C             = useTheme();
   const { t }         = useTranslation();
-  const { prefs, updateCategory, resetPrefs, clearDismissed, load } = useNotificationStore();
+  const { prefs, updatePrefs, updateCategory, resetPrefs, clearDismissed, load } = useNotificationStore();
   const [saveAnim, setSaveAnim] = useState(false);
+
+  // Aliased for the push toggle handler
+  const initPush = initPushNotifications;
+  const hasPerm  = hasNotificationPermission;
 
   useEffect(() => { load(); }, []);
 
@@ -228,26 +233,33 @@ export default function NotificationSettingsScreen() {
             />
           </Section>
 
-          {/* ── Push notifications (coming soon) ─────────────── */}
-          <View style={[styles.sectionCard, { backgroundColor: C.surface }]}>
-            <View style={[styles.sectionHeader, { borderBottomColor: C.divider }]}>
-              <View style={styles.sectionTitleRow}>
-                <View style={styles.sectionIconWrap}><Bell size={16} color={C.textSecondary} strokeWidth={2} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.sectionTitle, { color: C.textPrimary }]}>{t('notifications.pushTitle')}</Text>
-                  <Text style={[styles.sectionSubtitle, { color: C.textTertiary }]}>{t('notifications.pushSub')}</Text>
-                </View>
-                <View style={[styles.comingSoonBadge, { backgroundColor: C.primaryLight }]}>
-                  <Text style={[styles.comingSoonText, { color: C.primary }]}>{t('notifications.comingSoon')}</Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.sectionBody}>
-              <Text style={[styles.pushNote, { color: C.textTertiary }]}>
-                {t('notifications.pushNote')}
-              </Text>
-            </View>
-          </View>
+          {/* ── 5. Push Notifications ────────────────────────── */}
+          <Section
+            Icon={Bell}
+            title={t('notifications.pushTitle')}
+            subtitle={t('notifications.pushSub')}
+            enabled={prefs.pushEnabled}
+            onToggle={async (v) => {
+              if (v) {
+                // Request permission and initialize
+                const token = await initPush();
+                if (token === null && !await hasPerm()) {
+                  // Permission denied — keep toggle off
+                  return;
+                }
+              }
+              updateCategory('pushEnabled' as any, v as any);
+              // Use top-level updatePrefs for the boolean field
+              updatePrefs({ pushEnabled: v });
+            }}
+            C={C}
+          >
+            <Text style={[styles.pushNote, { color: C.textTertiary }]}>
+              {prefs.pushEnabled
+                ? t('notifications.pushActiveNote', { defaultValue: 'Push notifications are active. You will receive alerts for important financial events even when the app is closed.' })
+                : t('notifications.pushNote')}
+            </Text>
+          </Section>
 
           {/* ── Reset ─────────────────────────────────────────── */}
           <View style={{ gap: Spacing[3] }}>
