@@ -32,6 +32,8 @@ import transactionRoutes from './routes/transactions';
 import budgetRoutes from './routes/budgets';
 import goalRoutes from './routes/goals';
 import groupRoutes from './routes/groups';
+import debtRoutes from './routes/debts';
+import recurringRoutes from './routes/recurring';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -76,6 +78,8 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/debts', debtRoutes);
+app.use('/api/recurring', recurringRoutes);
 
 // ── Health check ────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {

@@ -20,6 +20,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { ThemeProvider } from '../src/theme/ThemeContext';
 import { useAppSettingsStore } from '../src/stores/appSettingsStore';
 import { isRTL } from '../src/i18n';
+import { initPushNotifications } from '../src/services/notificationService';
 
 // Initialise i18n module (side-effect import — sets up i18next instance)
 import '../src/i18n';
@@ -44,6 +45,8 @@ export default function RootLayout() {
   useEffect(() => {
     initialize();
     loadSettings();
+    // Initialize push notifications (no-op if permission denied)
+    initPushNotifications().catch(() => {});
   }, []);
 
   // Apply RTL layout when Persian is active
@@ -94,6 +97,14 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="modals/savings-planner"
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="modals/notification-settings"
+            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="modals/add-debt"
             options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
           />
         </Stack>
